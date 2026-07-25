@@ -6,7 +6,10 @@
   --sea:#0B5A61; --sea-ink:#083E43; --sea-tint:#E4F0F1; --accent:#12B0BA;
   --deep:#0E343A; --deep-ink:#E8F3F4; --deep-muted:#93B7BB;
   --warn:#B4570F;
-  --b-sindo:#1D6FB8; --b-batamfast:#C2403B; --b-majestic:#1F8C60; --b-horizon:#C97313;
+  /* text colour that sits ON a filled accent/brand chip — flips in dark mode,
+     where the fills become light. Keeps every filled chip above 4.5:1. */
+  --on-fill:#FFFFFF;
+  --b-sindo:#1D6FB8; --b-batamfast:#C2403B; --b-majestic:#17714E; --b-horizon:#94570D;
   --shadow:0 1px 2px rgba(9,40,45,.06), 0 8px 24px rgba(9,40,45,.07);
   --sheet-shadow:0 -8px 40px rgba(9,40,45,.22);
   --r:14px; --tap:44px;
@@ -22,7 +25,8 @@
     --sea:#2A9AA3; --sea-ink:#8FE2E8; --sea-tint:#122B2E; --accent:#3FD0D9;
     --deep:#07181B; --deep-ink:#E4F2F3; --deep-muted:#7FA3A8;
     --warn:#E29A4E;
-    --b-sindo:#4C9BE0; --b-batamfast:#E4746E; --b-majestic:#45BE8C; --b-horizon:#E2A052;
+    --on-fill:#06191C;
+    --b-sindo:#7FBCF0; --b-batamfast:#F0968F; --b-majestic:#5FD3A2; --b-horizon:#EDB56B;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
     --sheet-shadow:0 -8px 40px rgba(0,0,0,.6);
   }
@@ -86,7 +90,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .hero .big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .hero .dep{font-family:var(--mono);font-size:38px;font-weight:700;letter-spacing:-.02em;
   line-height:1}
-.hero .cd{font-family:var(--mono);font-size:15px;font-weight:600;color:#fff;
+.hero .cd{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--on-fill);
   background:var(--sea);border-radius:8px;padding:4px 9px}
 .hero .cd.soon{background:var(--warn)}
 .hero .cd.gone{background:var(--muted)}
@@ -120,10 +124,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
   letter-spacing:.04em;text-transform:uppercase;line-height:1.25}
 .dchip .dd{display:block;font-family:var(--mono);font-size:14px;font-weight:650;
   margin-top:1px;line-height:1.15}
-.dchip[aria-selected="true"]{background:var(--sea);border-color:var(--sea);color:#fff}
-.dchip[aria-selected="true"] .dw{color:rgba(255,255,255,.78)}
+.dchip[aria-selected="true"]{background:var(--sea);border-color:var(--sea);color:var(--on-fill)}
+.dchip[aria-selected="true"] .dw{color:var(--on-fill);opacity:.72}
 .dchip.wknd .dw{color:var(--warn)}
-.dchip.wknd[aria-selected="true"] .dw{color:rgba(255,255,255,.8)}
+.dchip.wknd[aria-selected="true"] .dw{color:var(--on-fill);opacity:.8}
+.dchip .mo{font-size:9px;opacity:.75;margin-left:2px}
 
 .fbar{display:flex;align-items:center;gap:8px;padding:0 14px 10px;overflow-x:auto;
   scrollbar-width:none}
@@ -136,7 +141,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .fbtn.clear{color:var(--muted);border-style:dashed}
 .fbtn[hidden]{display:none}
 .fbtn .badge{min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--sea);
-  color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;
+  color:var(--on-fill);font-size:11px;font-weight:700;display:grid;place-items:center;
   font-family:var(--mono)}
 /* an explicit display: wins over the hidden attribute, so restate it */
 .fbtn .badge[hidden]{display:none}
@@ -152,47 +157,60 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .row+.row,.board li+li .row{margin-top:0}
 .sep{display:flex;align-items:center;gap:10px;margin:16px 0 8px;
   font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--muted)}
-.sep::after{content:"";flex:1;height:1px;background:var(--line)}
+.sep .rule{flex:1;height:1px;background:var(--line)}
 .sep.now{color:var(--warn)}
-.sep.now::after{background:linear-gradient(90deg,var(--warn),transparent)}
+.sep.now .rule{background:linear-gradient(90deg,var(--warn),transparent)}
+/* collapse control lives on the now-divider: that line IS the past/upcoming
+   boundary, and it's where expanding scrolls you to */
+.sephide{flex:0 0 auto;min-height:32px;padding:0 11px;border-radius:16px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 
 .earlier{width:100%;min-height:var(--tap);border:1px dashed var(--line);border-radius:12px;
   background:var(--surface);color:var(--ink-2);font-size:13px;font-weight:550;
   margin:14px 0 16px}
 
-.row{display:flex;align-items:stretch;gap:12px;width:100%;text-align:left;
+/* Both columns are top-aligned and share one internal gap, so line 1 of the
+   time column sits level with line 1 of the detail column, and likewise line 2.
+   Centring each column independently (the obvious thing) misaligns them
+   whenever the two differ in height. */
+.row{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;
   background:var(--surface);border:1px solid var(--line);border-radius:14px;
-  padding:11px 12px;margin-bottom:8px;transition:transform .1s,border-color .12s}
+  padding:12px 13px;margin-bottom:8px;transition:transform .1s,border-color .12s}
 .row:active{transform:scale(.99)}
-.row .tcol{flex:0 0 66px;display:flex;flex-direction:column;justify-content:center}
-.row .dep{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.05}
-.row .arr{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px;white-space:nowrap}
-.row .rcol{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.row .tcol{flex:0 0 66px;display:flex;flex-direction:column;gap:6px}
+.row .dep{font-family:var(--mono);font-size:21px;font-weight:700;
+  letter-spacing:-.02em;line-height:1.05;min-height:22px;display:flex;align-items:center}
+.row .arr{font-family:var(--mono);font-size:11px;color:var(--muted);
+  white-space:nowrap;min-height:17px;display:flex;align-items:center}
+.row .rcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.row .r1{min-height:22px}
+.row .r2{min-height:17px}
 .row .r1{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
 .op{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650;
-  padding:2.5px 8px 2.5px 6px;border-radius:6px;color:#fff;white-space:nowrap}
-.op .d{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.85)}
+  padding:2.5px 8px 2.5px 6px;border-radius:6px;color:var(--on-fill);white-space:nowrap}
+.op .d{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.7}
 .dur{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
 .flag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;
   background:var(--sea-tint);color:var(--sea-ink);white-space:nowrap}
 .flag.days{background:transparent;color:var(--warn);padding-left:0}
+/* destination leads, origin follows — but the origin stays fully legible
+   (--muted is only ~4.3:1 on white, under AA for text this size) */
 .row .r2{font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px;
-  min-width:0;flex-wrap:wrap}
+  min-width:0;flex-wrap:wrap;line-height:1.3}
 .row .r2 b{font-weight:650;color:var(--ink)}
 .row .r2 i{font-style:normal;color:var(--muted)}
-.row .go{flex:0 0 auto;align-self:center;color:var(--muted);font-size:15px;padding-left:2px}
+.row .go{flex:0 0 auto;align-self:center;color:var(--muted);font-size:15px}
 
 .row.past{opacity:.45}
 .row.past .dep{text-decoration:line-through;text-decoration-thickness:1.5px}
-.row.next{border-color:var(--sea);box-shadow:0 0 0 1.5px var(--sea) inset,var(--shadow)}
-.row .cd{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;
-  background:var(--sea);color:#fff;padding:2.5px 7px;border-radius:6px;white-space:nowrap}
 
 .empty{background:var(--surface);border:1px dashed var(--line);border-radius:16px;
   padding:32px 20px;text-align:center;color:var(--muted);font-size:14px;margin-top:14px}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
 .empty button{margin-top:14px;min-height:var(--tap);padding:0 18px;border-radius:22px;
-  background:var(--sea);color:#fff;font-weight:600;font-size:14px}
+  background:var(--sea);color:var(--on-fill);font-weight:600;font-size:14px}
+.empty.small{padding:18px 16px;font-size:13px;margin-top:4px}
 
 /* ============================ notes ============================ */
 .notes{margin-top:26px}
@@ -233,7 +251,7 @@ details[open] summary::after{transform:rotate(180deg)}
   display:flex;gap:10px;flex:none;background:var(--surface)}
 .sfoot button{flex:1;min-height:var(--tap);border-radius:12px;font-weight:650;font-size:14.5px}
 .sfoot .ghost{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);flex:0 0 40%}
-.sfoot .prim{background:var(--sea);color:#fff}
+.sfoot .prim{background:var(--sea);color:var(--on-fill)}
 
 .fgroup+.fgroup{margin-top:20px}
 .fglabel{display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -263,13 +281,14 @@ details[open] summary::after{transform:rotate(180deg)}
   font-weight:600;color:var(--sea);background:var(--sea-tint);border-radius:6px;padding:2px 7px}
 .dl .rel.shut{color:var(--warn);background:transparent;padding-left:0}
 
-/* jump-to-now fab */
-.fab{position:fixed;left:50%;transform:translateX(-50%) translateY(80px);
+/* jump-to-now fab — right-aligned so it covers the chevron gutter, not the times */
+.fab{position:fixed;right:14px;transform:translateY(80px);
   bottom:calc(16px + var(--safe-b));z-index:40;
-  min-height:42px;padding:0 18px;border-radius:22px;background:var(--ink);color:var(--bg);
-  font-size:13.5px;font-weight:650;box-shadow:var(--shadow);
-  transition:transform .22s cubic-bezier(.32,.72,0,1);display:inline-flex;align-items:center;gap:7px}
-.fab.show{transform:translateX(-50%) translateY(0)}
+  min-height:38px;padding:0 15px;border-radius:20px;background:var(--ink);color:var(--bg);
+  font-size:13px;font-weight:650;box-shadow:var(--shadow);
+  transition:transform .22s cubic-bezier(.32,.72,0,1);display:inline-flex;align-items:center}
+.fab.show{transform:translateY(0)}
+@media (min-width:740px){.fab{right:calc(50% - 340px + 14px)}}
 
 .toast{position:fixed;left:50%;bottom:calc(70px + var(--safe-b));transform:translateX(-50%);
   z-index:90;background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;

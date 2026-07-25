@@ -176,7 +176,9 @@ function buildDates(){
     b.type='button'; b.role='tab'; b.className='dchip'+((d.dow===0||d.dow===6)?' wknd':'');
     b.setAttribute('aria-selected',String(d.ymd===state.date));
     const label = i===0?'Today' : i===1?'Tomorrow' : DAY_S[d.dow];
-    b.innerHTML=`<span class="dw">${label}</span><span class="dd num">${i<2?DAY_S[d.dow]:d.dom}</span>`;
+    /* once the strip crosses into a new month, day numbers alone are ambiguous */
+    const mo = (i>=2 && d.m!==DATES[0].m) ? `<span class="mo">${d.mon}</span>` : '';
+    b.innerHTML=`<span class="dw">${label}</span><span class="dd num">${i<2?DAY_S[d.dow]:d.dom}${mo}</span>`;
     b.setAttribute('aria-label',`${DAY_L[d.dow]} ${d.dom} ${d.mon}`);
     b.addEventListener('click',()=>{
       state.date=d.ymd; state.showPast=false;
@@ -259,14 +261,12 @@ function renderHero(rows){
    RENDER · board
    =================================================================== */
 let VIEW=[];
-function rowHTML(e,i,{past,next,nowMin}){
-  const b=BRANDS[e.brand], arr=arrivalMin(e), d=durOf(e);
-  let cd='';
-  if(next){
-    const m=toMin(e.time)-nowMin;
-    cd=`<span class="cd num">${m<1?'NOW':span(m)}</span>`;
-  }
-  return `<li><button class="row${past?' past':''}${next?' next':''}" type="button" data-i="${i}">
+/* Arrival is in the departure port's counterpart zone, so a 60-min crossing
+   can print the same clock time as departure — the caption above the board
+   spells the hour offset out. */
+function rowHTML(e,i,past){
+  const b=BRANDS[e.brand], d=durOf(e), arr=arrivalMin(e);
+  return `<li><button class="row${past?' past':''}" type="button" data-i="${i}">
     <span class="tcol">
       <span class="dep num">${e.time}</span>
       ${d?`<span class="arr num">arr ${hhmm(arr)}</span>`:''}
@@ -277,41 +277,67 @@ function rowHTML(e,i,{past,next,nowMin}){
         ${d?`<span class="dur">~${d}m</span>`:''}
         ${e.interline?'<span class="flag">⇄ shared</span>':''}
         ${e.days.length<7?`<span class="flag days">${e.days.map(x=>DAY_S[x]).join('/')} only</span>`:''}
-        ${cd}
       </span>
-      <span class="r2"><b>${e.from}</b><i>→</i><b>${e.to}</b></span>
+      <span class="r2">${e.from}<i>→</i><b>${e.to}</b></span>
     </span>
     <span class="go" aria-hidden="true">›</span>
   </button></li>`;
 }
-function renderBoard(rows,nextIdx){
+function emptyHTML(){
+  const off=[];
+  const nOps=Object.keys(BRANDS).length-state.brands.size;
+  const nPorts=(SG_PORTS.length-state.sg.size)+(ID_PORTS.length-state.id.size);
+  if(nOps) off.push(`${nOps} operator${nOps>1?'s':''}`);
+  if(nPorts) off.push(`${nPorts} terminal${nPorts>1?'s':''}`);
+  return `<li><div class="empty"><b>No sailings match</b>
+    ${off.length
+      ? `You have ${off.join(' and ')} switched off. Turn some back on, or try another day.`
+      : `Nothing runs on this route today. Try another day.`}
+    ${off.length?'<br><button type="button" id="clearNow">Reset filters</button>':''}</div></li>`;
+}
+function renderBoard(rows,heroIdx){
   const board=$('board'), n=nowZ(), today=isToday();
   VIEW=rows;
   if(!rows.length){
-    board.innerHTML=`<li><div class="empty"><b>No sailings match</b>
-      Try turning filters back on, or pick another day.
-      <br><button type="button" id="clearNow">Reset filters</button></div></li>`;
-    $('clearNow').addEventListener('click',resetFilters);
+    board.innerHTML=emptyHTML();
+    $('clearNow')?.addEventListener('click',resetFilters);
     return;
   }
   const firstFuture = today ? rows.findIndex(e=>toMin(e.time)>=n.min) : 0;
   const pastCount = today ? (firstFuture===-1?rows.length:firstFuture) : 0;
-  const start = (today && !state.showPast) ? (firstFuture===-1?rows.length:firstFuture) : 0;
+  /* the hero already shows rows[heroIdx] — the board picks up after it */
+  const start = heroIdx===null ? pastCount : heroIdx+1;
+
+  const sep=(label,cls,extra)=>`<li><div class="sep${cls?' '+cls:''}"${cls==='now'?' id="nowMark"':''}>`
+    +`<span>${label}</span><i class="rule"></i>${extra||''}</div></li>`;
 
   let html='';
-  if(pastCount && !state.showPast)
-    html+=`<li><button class="earlier" type="button" id="showPast">↑ Show ${pastCount} earlier sailing${pastCount>1?'s':''}</button></li>`;
-
-  for(let i=start;i<rows.length;i++){
-    const e=rows[i], past=today&&toMin(e.time)<n.min;
-    if(today && state.showPast && i===firstFuture && firstFuture>0)
-      html+=`<li><div class="sep now" id="nowMark">Now · ${hhmm(n.min)}</div></li>`;
-    html+=rowHTML(e,i,{past,next:i===nextIdx,nowMin:n.min});
+  if(pastCount){
+    html += state.showPast
+      ? sep('Earlier today') + rows.slice(0,pastCount).map((e,i)=>rowHTML(e,i,true)).join('')
+      : `<li><button class="earlier" type="button" id="showPast">↑ Show ${pastCount} earlier sailing${pastCount>1?'s':''}</button></li>`;
+  }
+  if(start<rows.length){
+    const shownPast = pastCount && state.showPast;
+    html += shownPast
+      ? sep(`Now · ${hhmm(n.min)}`,'now','<button class="sephide" type="button" id="hidePast">Hide earlier</button>')
+      : sep(today?'Later today':'Rest of the day');
+    for(let i=start;i<rows.length;i++) html+=rowHTML(rows[i],i,false);
+  }else if(heroIdx!==null){
+    html+=`<li><div class="empty small">That's the last sailing of the day.</div></li>`;
   }
   board.innerHTML=html;
-  const sp=$('showPast');
-  if(sp) sp.addEventListener('click',()=>{state.showPast=true;renderAll();
+  $('showPast')?.addEventListener('click',()=>{state.showPast=true;renderAll();
     requestAnimationFrame(()=>$('nowMark')?.scrollIntoView({block:'center',behavior:'smooth'}));});
+  $('hidePast')?.addEventListener('click',()=>{
+    /* keep the board from jumping: anchor on the collapse control itself */
+    const before=$('hidePast').getBoundingClientRect().top;
+    state.showPast=false; renderAll();
+    requestAnimationFrame(()=>{
+      const el=$('showPast'); if(!el) return;
+      scrollBy({top:el.getBoundingClientRect().top-before,behavior:'instant'});
+    });
+  });
 }
 $('board').addEventListener('click',ev=>{
   const btn=ev.target.closest('.row'); if(!btn) return;
@@ -321,13 +347,22 @@ $('board').addEventListener('click',ev=>{
 function renderAll(){
   const sel=selected(); if(!sel) return;
   const rows=sailings(sel.dow);
-  const depTz=state.dir==='SG'?'SGT':'WIB', arrTz=state.dir==='SG'?'WIB':'SGT';
-  $('cap').innerHTML=`Departure times in <b>${depTz}</b> · arrivals approximate, in <b>${arrTz}</b>`
-    +` — the two ports are an hour apart.`;
-  $('sailCount').textContent=rows.length;
-  $('sheetCount').textContent=rows.length;
-  const nextIdx=renderHero(rows);
-  renderBoard(rows,nextIdx);
+  const n=nowZ(), today=isToday();
+  const depTz=state.dir==='SG'?'SGT':'WIB';
+  const arrTz=state.dir==='SG'?'WIB':'SGT';
+  $('cap').innerHTML=`Departures in <b>${depTz}</b>, arrivals in <b>${arrTz}</b>`
+    +` — the two ports are an hour apart, so a 60-min crossing lands on the same clock time.`;
+
+  /* count what's actually on the board: while past sailings are collapsed,
+     quoting the whole day's total contradicts the list underneath it */
+  const upcoming = today ? rows.filter(e=>toMin(e.time)>=n.min).length : rows.length;
+  const shown = (today && !state.showPast) ? upcoming : rows.length;
+  $('sailCount').textContent=shown;
+  $('countWord').textContent = (today && !state.showPast) ? 'still to go' : 'sailings';
+  $('sheetCount').textContent=shown;
+
+  const heroIdx=renderHero(rows);
+  renderBoard(rows,heroIdx);
   syncFilterBar();
 }
 
@@ -442,8 +477,8 @@ function openDetail(e){
       <div><dt>Operator</dt><dd>${b.name}</dd></div>
       <div><dt>Check-in closes</dt><dd class="mono">${hhmm(close)} ${rel(close)}</dd></div>
       <div><dt>Departs</dt><dd class="mono">${e.from} ${e.time} ${rel(toMin(e.time))}</dd></div>
-      ${d?`<div><dt>Arrives (approx)</dt><dd class="mono">${e.to} ${hhmm(arr)}</dd></div>
-          <div><dt>Crossing</dt><dd class="mono">~${d} min · ${arrTz}</dd></div>`
+      ${d?`<div><dt>Arrives (approx)</dt><dd class="mono">${e.to} ${hhmm(arr)} ${arrTz}</dd></div>
+          <div><dt>Crossing</dt><dd class="mono">~${d} min</dd></div>`
          :`<div><dt>Arrives</dt><dd>${e.to}</dd></div>`}
       <div><dt>Operates</dt><dd>${e.days.length===7?'Daily':e.days.map(x=>DAY_S[x]).join(', ')}</dd></div>
       ${e.interline?'<div><dt>Note</dt><dd>Interlined — Sindo and Batam Fast sell this same sailing</dd></div>':''}
