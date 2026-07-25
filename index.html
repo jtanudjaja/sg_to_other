@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Singapore ⇄ Batam · Ferry Departures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#13262C; --sea:#0B5A61; --sea-deep:#0E343A; --mist:#E2EAEC;
+    --surface:#FFFFFF; --muted:#5E747C; --hair:#CCDADD; --hair-soft:#E5EDEF;
+    --b-sindo:#1D6FB8; --b-batamfast:#C2403B; --b-majestic:#2F9E6F; --b-horizon:#D9831C;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--mist);color:var(--ink);
+    line-height:1.45;padding-bottom:48px}
+  .wrap{max-width:760px;margin:0 auto;padding:0 16px}
+
+  /* masthead */
+  .masthead{background:var(--sea-deep);color:#EAF3F4}
+  .masthead .wrap{padding-top:20px;padding-bottom:18px}
+  .route-label{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:-.02em;
+    font-size:clamp(24px,6.4vw,38px);line-height:1.02}
+  .route-label .arrow{color:#5FC9CF;font-weight:500;padding:0 .1em}
+  .clockrow{display:flex;align-items:baseline;gap:10px;margin-top:14px;
+    font-family:'IBM Plex Mono',monospace;flex-wrap:wrap}
+  .clock{font-size:22px;font-weight:600;letter-spacing:.04em}
+  .clockmeta{font-size:12px;color:#85B0B4}
+  .detect{margin-top:10px;font-size:12px;color:#9DBDC0;display:flex;align-items:center;
+    gap:7px;flex-wrap:wrap}
+  .detect .pill{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);
+    border-radius:20px;padding:3px 10px;color:#CFE6E7}
+  .detect button{background:none;border:0;color:#7FD8DD;font:inherit;font-size:12px;
+    text-decoration:underline;cursor:pointer;padding:0}
+
+  /* controls */
+  .controls{position:sticky;top:0;z-index:20;background:var(--mist);border-bottom:1px solid var(--hair)}
+  .controls .wrap{padding-top:13px;padding-bottom:12px}
+  .ctl-label{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    font-weight:600;margin:0 0 7px 2px}
+  .group+.group{margin-top:12px}
+
+  .dirseg{display:flex;background:var(--surface);border:1px solid var(--hair);
+    border-radius:11px;overflow:hidden}
+  .dirseg button{flex:1;border:0;background:transparent;font:inherit;font-size:13.5px;
+    font-weight:600;padding:10px 6px;cursor:pointer;color:var(--muted)}
+  .dirseg button.sel{background:var(--sea);color:#fff}
+
+  .days{display:flex;gap:6px}
+  .day{flex:1;text-align:center;border:1px solid var(--hair);background:var(--surface);
+    border-radius:10px;padding:8px 0 7px;cursor:pointer;font-family:'IBM Plex Mono',monospace;
+    font-size:13px;font-weight:500;transition:.13s;user-select:none;position:relative}
+  .day small{display:block;font-size:9px;color:var(--muted);letter-spacing:.05em;margin-top:2px}
+  .day.sel{background:var(--sea);border-color:var(--sea);color:#fff}
+  .day.sel small{color:#B6E0E2}
+  .day.today-dot::after{content:"";position:absolute;top:5px;right:7px;width:5px;height:5px;
+    border-radius:50%;background:var(--b-horizon)}
+  .day.sel.today-dot::after{background:#fff}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--hair);background:var(--surface);border-radius:20px;
+    padding:6px 13px 6px 11px;cursor:pointer;font-size:13px;font-weight:500;
+    display:inline-flex;align-items:center;gap:7px;transition:.13s;user-select:none}
+  .chip .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .chip.plain{padding-left:13px}
+  .chip.off{opacity:.42;background:transparent}
+  .chip.off .dot{filter:grayscale(1)}
+  .seg{display:inline-flex;background:var(--surface);border:1px solid var(--hair);
+    border-radius:10px;overflow:hidden}
+  .seg button{border:0;background:transparent;font:inherit;font-size:12.5px;padding:7px 12px;
+    cursor:pointer;color:var(--muted);font-weight:500}
+  .seg button.sel{background:var(--sea);color:#fff}
+
+  /* board */
+  .summary{font-size:12.5px;color:var(--muted);margin:18px 2px 4px;display:flex;
+    justify-content:space-between;align-items:baseline}
+  .summary b{color:var(--ink);font-weight:600}
+  .row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--hair-soft)}
+  .time{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;width:62px;flex:none}
+  .row.past{opacity:.36}
+  .row.past .time{text-decoration:line-through}
+  .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+  .tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:6px;color:#fff;white-space:nowrap}
+  .portpair{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+  .from{padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:600;border:1px solid transparent}
+  .from.p-sg{background:#E5F0F1;color:#0B5A61;border-color:#C3E0E2}
+  .from.p-id{background:#F4ECE2;color:#9A5B1E;border-color:#E6D6C2}
+  .parrow{color:var(--hair)}
+  .to-inline{font-weight:600}
+  .flag{font-size:11px;color:var(--muted);font-weight:500}
+  .flag.interline{color:var(--sea);font-weight:600}
+  .next-badge{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+    background:var(--ink);color:#fff;padding:3px 8px;border-radius:6px;white-space:nowrap}
+  .row.next{background:#F0F7F7;border-radius:10px;box-shadow:inset 3px 0 0 var(--sea);padding-left:10px}
+  .empty{padding:34px 12px;text-align:center;color:var(--muted);font-size:14px;
+    border:1px dashed var(--hair);border-radius:12px;margin-top:18px}
+
+  .notes{margin-top:30px;padding:16px;background:var(--surface);border:1px solid var(--hair);
+    border-radius:14px;font-size:12.5px;color:var(--muted)}
+  .notes h3{font-family:'Space Grotesk',sans-serif;font-size:12px;text-transform:uppercase;
+    letter-spacing:.12em;color:var(--ink);margin-bottom:9px}
+  .notes p{margin-bottom:7px}
+  .notes p:last-child{margin-bottom:0}
+  .notes b{color:var(--ink)}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:11px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+  .legend .dot{width:9px;height:9px;border-radius:50%}
+  @media (max-width:430px){.time{width:54px;font-size:16px}.day{font-size:12px}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="route-label" id="routeLabel">Singapore<span class="arrow">→</span>Batam</div>
+    <div class="clockrow">
+      <span class="clock" id="clock">--:--</span>
+      <span class="clockmeta" id="clockmeta"></span>
+    </div>
+    <div class="detect">
+      <span class="pill" id="detectPill">Detecting location…</span>
+      <button id="redetect">Re-detect</button>
+    </div>
+  </div>
+</header>
+
+<section class="controls">
+  <div class="wrap">
+    <div class="group">
+      <div class="ctl-label">Direction</div>
+      <div class="dirseg" id="dir">
+        <button data-d="SG" class="sel">Singapore → Batam</button>
+        <button data-d="ID">Batam → Singapore</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="ctl-label">Day</div>
+      <div class="days" id="days"></div>
+    </div>
+    <div class="group">
+      <div class="ctl-label">Operator</div>
+      <div class="chips" id="brands"></div>
+    </div>
+    <div class="group">
+      <div class="ctl-label" id="sgLabel">Singapore terminal</div>
+      <div class="seg" id="sgports">
+        <button data-t="ALL" class="sel">All</button>
+        <button data-t="HarbourFront">HarbourFront</button>
+        <button data-t="Tanah Merah">Tanah Merah</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="ctl-label" id="idLabel">Batam terminal</div>
+      <div class="chips" id="idports"></div>
+    </div>
+  </div>
+</section>
+
+<main class="wrap">
+  <div class="summary">
+    <span id="summaryDay"></span>
+    <span><b id="sailCount">0</b> sailings</span>
+  </div>
+  <div id="board"></div>
+
+  <div class="notes">
+    <h3>Operators</h3>
+    <div class="legend" id="legend"></div>
+    <p><b>All times are departure-port local time.</b> Singapore → Batam is shown in <b>SG time (UTC+8)</b>; Batam → Singapore is shown in <b>WIB (UTC+7)</b>, exactly as the operators publish them. The clock and the <b>NEXT</b> countdown switch timezone with the direction, so a Batam countdown is never an hour off.</p>
+    <p><b>Location detection</b> uses your device position where the browser allows it, and falls back to your timezone. If you're in neither place, it defaults to Singapore. It's a guess — flip the direction toggle any time.</p>
+    <p><b>⇄ shared</b> marks interlined trips: Sindo and Batam Fast sell the same physical sailing, so don't count it as two boats. Batam Fast's suspended Gold Coast trips are excluded.</p>
+    <p>Arrive <b>~90 min early</b> for check-in and immigration. Weekend timings also apply on <b>public holidays</b>. Sindo moves HarbourFront services to the new terminal (70m away) from 15 Jul 2026; schedules unchanged.</p>
+    <p>Schedules change without notice — confirm with the operator for your travel date. Sources: Batam Fast (WEF 11 Apr 2026), Majestic (WEF 12 May 2026), Sindo and Horizon (current).</p>
+  </div>
+</main>
+
+<script>
+/* days: 0=Sun 1=Mon ... 6=Sat */
+const ALL=[0,1,2,3,4,5,6], SatSun=[6,0], FriSun=[5,6,0], ThuSun=[4,5,6,0],
+      SatMon=[6,0,1], SunOnly=[0], MonSatSun=[1,6,0];
+
+const BRANDS={
+  sindo:{name:'Sindo',color:'var(--b-sindo)'},
+  batamfast:{name:'Batam Fast',color:'var(--b-batamfast)'},
+  majestic:{name:'Majestic',color:'var(--b-majestic)'},
+  horizon:{name:'Horizon',color:'var(--b-horizon)'},
+};
+const SG_PORTS=['HarbourFront','Tanah Merah'];
+const ID_PORTS=['Batam Centre','Harbour Bay','Sekupang','Gold Coast','Waterfront','Nongsapura'];
+
+/* dir:'SG' = Singapore->Batam (SG time) ; dir:'ID' = Batam->Singapore (WIB) */
+function E(dir,brand,from,to,times,days,extra){
+  return times.map(t=>({dir,brand,from,to,time:t,days:days||ALL,...(extra||{})}));
+}
+
+const D=[
+/* ---------- SINGAPORE → BATAM (SG time) ---------- */
+...E('SG','sindo','HarbourFront','Batam Centre',['08:00','09:00','10:20','12:00','13:20','14:50','16:10','17:20','18:30','19:40','20:45','21:50']),
+...E('SG','batamfast','HarbourFront','Batam Centre',['07:40','08:40','09:30','10:50','12:30','14:20','15:30','16:50','18:00','19:10','20:20','21:40']),
+...E('SG','majestic','HarbourFront','Batam Centre',['08:10','08:50','09:50','10:40','11:45','12:20','13:50','15:20','16:20','17:10','17:50','18:50','20:10','21:20']),
+
+...E('SG','horizon','HarbourFront','Harbour Bay',['08:15','09:10','10:15','11:15','12:15','13:15','14:15','15:15','16:30','17:45','19:00','20:15','21:35']),
+
+...E('SG','sindo','HarbourFront','Sekupang',['08:30','10:00','11:10','14:10','16:00','17:30','18:10','19:30']),
+...E('SG','batamfast','HarbourFront','Sekupang',['08:20','11:10','17:30','19:30']),
+...E('SG','batamfast','HarbourFront','Sekupang',['09:20'],SatMon),
+...E('SG','batamfast','HarbourFront','Sekupang',['10:00','14:10'],ALL,{interline:true}),
+...E('SG','batamfast','HarbourFront','Sekupang',['18:10'],FriSun,{interline:true}),
+...E('SG','majestic','HarbourFront','Sekupang',['08:45','09:45','12:45','17:40','20:40']),
+
+...E('SG','sindo','HarbourFront','Gold Coast',['07:55','09:35','10:30','13:00','18:25']),
+...E('SG','batamfast','HarbourFront','Gold Coast',['10:30']),
+
+...E('SG','sindo','HarbourFront','Waterfront',['10:00','14:10']),
+
+...E('SG','sindo','Tanah Merah','Batam Centre',['10:20','12:30','14:30','16:30','17:40']),
+...E('SG','batamfast','Tanah Merah','Batam Centre',['10:20'],ALL,{interline:true}),
+...E('SG','batamfast','Tanah Merah','Batam Centre',['12:30','16:30']),
+...E('SG','batamfast','Tanah Merah','Batam Centre',['14:30'],FriSun,{interline:true}),
+...E('SG','batamfast','Tanah Merah','Batam Centre',['17:40'],SunOnly),
+...E('SG','batamfast','Tanah Merah','Batam Centre',['20:10'],ThuSun),
+...E('SG','majestic','Tanah Merah','Batam Centre',['08:15','10:30','15:15','18:00','20:45']),
+...E('SG','majestic','Tanah Merah','Batam Centre',['09:30'],MonSatSun),
+...E('SG','majestic','Tanah Merah','Batam Centre',['12:40','16:45','19:20'],SatSun),
+
+...E('SG','batamfast','Tanah Merah','Nongsapura',['08:00','08:50','10:50','12:00','14:20','16:20','18:30','20:20']),
+
+/* ---------- BATAM → SINGAPORE (WIB / Indonesia time) ---------- */
+...E('ID','sindo','Batam Centre','HarbourFront',['06:00','07:20','08:40','10:40','12:40','14:00','15:10','16:10','17:20','18:20','19:30','20:20']),
+...E('ID','batamfast','Batam Centre','HarbourFront',['06:00','07:00','08:20','09:50','11:10','12:50','14:10','15:20','16:30','17:40','19:00','20:30']),
+...E('ID','majestic','Batam Centre','HarbourFront',['06:00','07:10','08:20','09:30','10:20','11:30','12:20','13:30','14:30','15:15','16:00','17:30','18:30','20:35']),
+
+...E('ID','horizon','Harbour Bay','HarbourFront',['06:00','07:15','08:30','09:45','10:45','11:45','12:45','14:00','15:30','16:30','17:30','19:15','20:30']),
+
+...E('ID','sindo','Sekupang','HarbourFront',['06:00','07:00','08:30','11:20','12:30','13:50','15:20','17:40','18:30']),
+...E('ID','batamfast','Sekupang','HarbourFront',['06:00','08:30','12:30','17:40']),
+...E('ID','batamfast','Sekupang','HarbourFront',['07:00','11:20','15:20'],ALL,{interline:true}),
+...E('ID','batamfast','Sekupang','HarbourFront',['15:30'],FriSun),
+...E('ID','batamfast','Sekupang','HarbourFront',['18:30'],FriSun,{interline:true}),
+...E('ID','majestic','Sekupang','HarbourFront',['06:00','09:00','13:10','16:20','18:00']),
+
+...E('ID','sindo','Gold Coast','HarbourFront',['08:10','10:30','14:00','15:30','19:00']),
+...E('ID','batamfast','Gold Coast','HarbourFront',['15:30'],ALL,{interline:true}),
+...E('ID','batamfast','Gold Coast','HarbourFront',['19:00']),
+
+...E('ID','sindo','Waterfront','HarbourFront',['13:20','14:50']),
+
+...E('ID','sindo','Batam Centre','Tanah Merah',['08:00','09:20','11:30','13:20']),
+...E('ID','batamfast','Batam Centre','Tanah Merah',['09:20','13:20']),
+...E('ID','batamfast','Batam Centre','Tanah Merah',['08:00'],ALL,{interline:true}),
+...E('ID','batamfast','Batam Centre','Tanah Merah',['07:45'],ThuSun),
+...E('ID','batamfast','Batam Centre','Tanah Merah',['11:30'],FriSun,{interline:true}),
+...E('ID','majestic','Batam Centre','Tanah Merah',['06:15','08:25','12:00','15:30','18:00']),
+...E('ID','majestic','Batam Centre','Tanah Merah',['09:40','13:00','17:00'],SatSun),
+...E('ID','majestic','Batam Centre','Tanah Merah',['19:50'],FriSun),
+
+...E('ID','batamfast','Nongsapura','Tanah Merah',['06:00','08:00','09:30','12:10','14:20','15:40','17:30','20:00']),
+];
+
+const DAY_NAMES=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_FULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DAY_ORDER=[1,2,3,4,5,6,0];
+
+const state={
+  dir:'SG', day:null, userSetDir:false,
+  brands:new Set(Object.keys(BRANDS)),
+  sgPort:'ALL',
+  idPorts:new Set(['Batam Centre','Harbour Bay'])
+};
+
+const TZ={SG:'Asia/Singapore', ID:'Asia/Jakarta'};
+const now=()=>new Date(new Date().toLocaleString('en-US',{timeZone:TZ[state.dir]}));
+const toMin=t=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
+
+/* ---------- location detection ---------- */
+const SG_C={lat:1.3521,lng:103.8198}, ID_C={lat:1.0800,lng:104.0300};
+function haversine(a,b){
+  const R=6371,r=Math.PI/180;
+  const dLa=(b.lat-a.lat)*r, dLo=(b.lng-a.lng)*r;
+  const x=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function setDetect(text){document.getElementById('detectPill').textContent=text;}
+function applyDir(d){
+  if(state.userSetDir) return;
+  state.dir=d;
+  [...document.getElementById('dir').children].forEach(b=>b.classList.toggle('sel',b.dataset.d===d));
+  syncDir();
+}
+function detectByTZ(){
+  let tz='';
+  try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
+  if(/Jakarta|Pontianak/i.test(tz)){applyDir('ID');setDetect('Batam · from your timezone');return;}
+  if(/Singapore/i.test(tz)){applyDir('SG');setDetect('Singapore · from your timezone');return;}
+  applyDir('SG');setDetect('Singapore · default');
+}
+function detectByGeo(){
+  if(!navigator.geolocation){detectByTZ();return;}
+  let settled=false;
+  const fallback=setTimeout(()=>{if(!settled){settled=true;detectByTZ();}},7000);
+  navigator.geolocation.getCurrentPosition(pos=>{
+    if(settled)return; settled=true; clearTimeout(fallback);
+    const p={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    const dSG=haversine(p,SG_C), dID=haversine(p,ID_C);
+    if(Math.min(dSG,dID)>100){applyDir('SG');setDetect('Not in SG or Batam · showing Singapore');}
+    else if(dID<dSG){applyDir('ID');setDetect('Batam · from your location');}
+    else{applyDir('SG');setDetect('Singapore · from your location');}
+  },()=>{
+    if(settled)return; settled=true; clearTimeout(fallback);
+    detectByTZ();
+  },{enableHighAccuracy:false,timeout:6000,maximumAge:300000});
+}
+document.getElementById('redetect').onclick=()=>{
+  state.userSetDir=false; setDetect('Detecting…'); detectByGeo();
+};
+
+/* ---------- controls ---------- */
+document.getElementById('dir').onclick=e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  state.dir=b.dataset.d; state.userSetDir=true;
+  setDetect('Set manually');
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('sel',x===b));
+  syncDir();
+};
+function syncDir(){
+  const sg=state.dir==='SG';
+  document.getElementById('routeLabel').innerHTML=
+    sg?'Singapore<span class="arrow">→</span>Batam':'Batam<span class="arrow">→</span>Singapore';
+  document.getElementById('sgLabel').textContent=sg?'Departing from (Singapore)':'Arriving at (Singapore)';
+  document.getElementById('idLabel').textContent=sg?'Arriving at (Batam)':'Departing from (Batam)';
+  state.day=null; buildDays(); tickClock(); render();
+}
+function buildDays(){
+  const today=now().getDay();
+  if(state.day===null) state.day=today;
+  const box=document.getElementById('days'); box.innerHTML='';
+  DAY_ORDER.forEach(d=>{
+    const el=document.createElement('div');
+    el.className='day'+(d===state.day?' sel':'')+(d===today?' today-dot':'');
+    el.innerHTML=DAY_NAMES[d]+(d===today?'<small>today</small>':'<small>&nbsp;</small>');
+    el.onclick=()=>{state.day=d;buildDays();render();};
+    box.appendChild(el);
+  });
+}
+function buildBrands(){
+  const box=document.getElementById('brands'); box.innerHTML='';
+  Object.entries(BRANDS).forEach(([k,b])=>{
+    const el=document.createElement('div');
+    el.className='chip'+(state.brands.has(k)?'':' off');
+    el.innerHTML=`<span class="dot" style="background:${b.color}"></span>${b.name}`;
+    el.onclick=()=>{
+      state.brands.has(k)?state.brands.delete(k):state.brands.add(k);
+      if(!state.brands.size) state.brands=new Set(Object.keys(BRANDS));
+      buildBrands();render();
+    };
+    box.appendChild(el);
+  });
+}
+function buildIdPorts(){
+  const box=document.getElementById('idports'); box.innerHTML='';
+  ID_PORTS.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='chip plain'+(state.idPorts.has(p)?'':' off');
+    el.textContent=p;
+    el.onclick=()=>{
+      state.idPorts.has(p)?state.idPorts.delete(p):state.idPorts.add(p);
+      if(!state.idPorts.size) state.idPorts=new Set(ID_PORTS);
+      buildIdPorts();render();
+    };
+    box.appendChild(el);
+  });
+}
+document.getElementById('sgports').onclick=e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  state.sgPort=b.dataset.t;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('sel',x===b));
+  render();
+};
+function buildLegend(){
+  document.getElementById('legend').innerHTML=Object.values(BRANDS)
+    .map(b=>`<span><i class="dot" style="background:${b.color}"></i>${b.name}</span>`).join('');
+}
+
+/* ---------- board ---------- */
+function render(){
+  const n=now(), isToday=state.day===n.getDay(), nowMin=n.getHours()*60+n.getMinutes();
+  const sg=state.dir==='SG';
+
+  const rows=D.filter(e=>e.dir===state.dir && e.days.includes(state.day)
+    && state.brands.has(e.brand)
+    && (state.sgPort==='ALL' || (sg?e.from:e.to)===state.sgPort)
+    && state.idPorts.has(sg?e.to:e.from))
+    .sort((a,b)=>toMin(a.time)-toMin(b.time)||a.from.localeCompare(b.from)||a.to.localeCompare(b.to));
+
+  document.getElementById('sailCount').textContent=rows.length;
+  document.getElementById('summaryDay').innerHTML=
+    `<b>${DAY_FULL[state.day]}</b> · ${sg?'SG time':'WIB'}${isToday?' · live':''}`;
+
+  const board=document.getElementById('board'); board.innerHTML='';
+  if(!rows.length){
+    board.innerHTML='<div class="empty">No sailings match these filters. Try another operator, terminal, or day.</div>';
+    return;
+  }
+  const nextIdx=isToday?rows.findIndex(e=>toMin(e.time)>=nowMin):-1;
+
+  rows.forEach((e,i)=>{
+    const b=BRANDS[e.brand];
+    const past=isToday&&toMin(e.time)<nowMin, isNext=i===nextIdx;
+    const fromCls=SG_PORTS.includes(e.from)?'p-sg':'p-id';
+    let right='';
+    if(isNext){
+      const d=toMin(e.time)-nowMin;
+      right=`<span class="next-badge">NEXT · ${d<60?`in ${d} min`:`in ${Math.floor(d/60)}h ${d%60}m`}</span>`;
+    }
+    const row=document.createElement('div');
+    row.className='row'+(past?' past':'')+(isNext?' next':'');
+    row.innerHTML=`<div class="time">${e.time}</div>
+      <div class="meta">
+        <span class="tag" style="background:${b.color}">${b.name}</span>
+        <span class="portpair">
+          <span class="from ${fromCls}">${e.from}</span>
+          <span class="parrow">→</span>
+          <span class="to-inline">${e.to}</span>
+        </span>
+        ${e.interline?'<span class="flag interline">⇄ shared</span>':''}
+        ${e.days.length<7?`<span class="flag">${e.days.map(d=>DAY_NAMES[d]).join('/')} only</span>`:''}
+      </div>${right}`;
+    board.appendChild(row);
+  });
+}
+
+/* ---------- clock ---------- */
+function tickClock(){
+  const n=now(), sg=state.dir==='SG';
+  const p=x=>String(x).padStart(2,'0');
+  document.getElementById('clock').innerHTML=
+    `${p(n.getHours())}:${p(n.getMinutes())}<span style="color:#5C9498">:${p(n.getSeconds())}</span>`;
+  document.getElementById('clockmeta').textContent=
+    `${DAY_FULL[n.getDay()]} · ${sg?'Singapore time (UTC+8)':'Batam / WIB (UTC+7)'}`;
+}
+
+/* ---------- init ---------- */
+buildBrands(); buildIdPorts(); buildLegend(); buildDays(); render(); tickClock();
+detectByGeo();
+setInterval(tickClock,1000);
+setInterval(render,30000);
+let lastDay=now().getDay();
+setInterval(()=>{
+  const d=now().getDay();
+  if(d!==lastDay){lastDay=d;state.day=d;buildDays();render();}
+},60000);
+</script>
+</body>
+</html>
