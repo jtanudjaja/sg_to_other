@@ -17,6 +17,8 @@ Opens straight onto results — no form to fill in. It guesses your direction fr
 
 ## Behaviour notes
 
+- **Main ports are the default:** only Batam Centre and Harbour Bay are selected. Use **Browse other ports** inside Filters for Sekupang, Gold Coast, Waterfront and Nongsapura. Terminal filters apply within the selected group, in both directions; Reset and Clear return to the main ports. The group and filters persist; older saved filters migrate to the main ports.
+
 - **Times are departure-port local.** SG → Batam in SGT (UTC+8), Batam → SG in WIB (UTC+7), as the operators publish them. The clock, countdown and date strip all follow the selected direction. Both zones are DST-free, so offsets are fixed.
 - **Check-in cutoff is 35 minutes** (`LEAD` in [app.js](app.js)). If it has already passed for the next boat, the board says so and points at the first sailing you can still make.
 - **Arrival times and durations are approximate** — typical crossing times from the `DUR` map in [data.js](data.js), not published arrivals.

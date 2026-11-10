@@ -9,7 +9,7 @@
 <title>Singapore ⇄ Batam · Ferry Departures</title>
 <!-- bump ?v= on every asset when you change styles.css / data.js / app.js,
      otherwise browsers keep serving the cached copy -->
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=17">
 </head>
 <body>
 
@@ -43,7 +43,7 @@
   <div class="wrap" style="padding:0">
     <div class="fbar">
       <button class="fbtn" id="fBtn" type="button" aria-haspopup="dialog">
-        <span class="fico" aria-hidden="true">☰</span> Filters
+        <span class="fico" aria-hidden="true">☰</span> <span id="fLabel">Filters</span>
         <span class="badge num" id="fBadge" hidden>0</span>
       </button>
       <button class="fbtn clear" id="fClear" type="button" hidden>Clear</button>
@@ -106,6 +106,7 @@
     <div class="fgroup" id="grpID">
       <div class="fglabel"><span id="lblID">Batam terminal</span><button type="button" id="allID">Select all</button></div>
       <div class="chips" id="idChips"></div>
+      <button class="other-ports" id="otherPorts" type="button">Browse other ports</button>
     </div>
   </div>
   <div class="sfoot">
@@ -129,6 +130,6 @@
 </div>
 
 <script src="data.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

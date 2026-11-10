@@ -49,17 +49,21 @@ function arrivalMin(e){
    STATE
    =================================================================== */
 const KEY='sgbatam.v2';
+const MAIN_PORTS=['Batam Centre','Harbour Bay'];
+const portsInGroup=()=>state.portGroup==='other'
+  ? ID_PORTS.filter(p=>!MAIN_PORTS.includes(p)) : MAIN_PORTS;
 const state={
   dir:'SG', pinned:false,
   date:null,                                     /* 'YYYY-MM-DD' in departure tz */
   brands:new Set(Object.keys(BRANDS)),
   sg:new Set(SG_PORTS),
-  id:new Set(ID_PORTS),
+  portGroup:'main',
+  id:new Set(MAIN_PORTS),
   showPast:false,
 };
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify({
-    dir:state.dir,pinned:state.pinned,brands:[...state.brands],sg:[...state.sg],id:[...state.id]
+    dir:state.dir,pinned:state.pinned,brands:[...state.brands],sg:[...state.sg],id:[...state.id],portGroup:state.portGroup
   }));}catch(e){}
 }
 function load(){
@@ -69,10 +73,13 @@ function load(){
     state.pinned=!!s.pinned;
     if(Array.isArray(s.brands)&&s.brands.length) state.brands=new Set(s.brands.filter(b=>BRANDS[b]));
     if(Array.isArray(s.sg)&&s.sg.length) state.sg=new Set(s.sg.filter(p=>SG_PORTS.includes(p)));
-    if(Array.isArray(s.id)&&s.id.length) state.id=new Set(s.id.filter(p=>ID_PORTS.includes(p)));
+    // Older saved filters start in the main group as well.
+    state.portGroup=s.portGroup==='other'?'other':'main';
+    state.id=new Set(Array.isArray(s.id)
+      ? s.id.filter(p=>portsInGroup().includes(p)) : portsInGroup());
     if(!state.brands.size) state.brands=new Set(Object.keys(BRANDS));
     if(!state.sg.size) state.sg=new Set(SG_PORTS);
-    if(!state.id.size) state.id=new Set(ID_PORTS);
+    if(!state.id.size) state.id=new Set(portsInGroup());
   }catch(e){}
 }
 
@@ -95,7 +102,7 @@ function sailings(dow){
     toMin(a.time)-toMin(b.time) || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
 }
 const activeFilterCount=()=>
-  (state.brands.size<4?1:0)+(state.sg.size<SG_PORTS.length?1:0)+(state.id.size<ID_PORTS.length?1:0);
+  (state.brands.size<4?1:0)+(state.sg.size<SG_PORTS.length?1:0)+(state.id.size<portsInGroup().length?1:0);
 
 /* ===================================================================
    DIRECTION
@@ -286,7 +293,7 @@ function rowHTML(e,i,past){
 function emptyHTML(){
   const off=[];
   const nOps=Object.keys(BRANDS).length-state.brands.size;
-  const nPorts=(SG_PORTS.length-state.sg.size)+(ID_PORTS.length-state.id.size);
+  const nPorts=(SG_PORTS.length-state.sg.size)+(portsInGroup().length-state.id.size);
   if(nOps) off.push(`${nOps} operator${nOps>1?'s':''}`);
   if(nPorts) off.push(`${nPorts} terminal${nPorts>1?'s':''}`);
   return `<li><div class="empty"><b>No sailings match</b>
@@ -378,7 +385,7 @@ function buildChips(){
   $('opChips').innerHTML=Object.entries(BRANDS)
     .map(([k,b])=>chip(k,b.name,state.brands.has(k),b.color)).join('');
   $('sgChips').innerHTML=SG_PORTS.map(p=>chip(p,p,state.sg.has(p))).join('');
-  $('idChips').innerHTML=ID_PORTS.map(p=>chip(p,p,state.id.has(p))).join('');
+  $('idChips').innerHTML=portsInGroup().map(p=>chip(p,p,state.id.has(p))).join('');
 }
 /* Groups are addressed by state KEY, never by a captured Set — `selectAll`
    and `resetFilters` replace the Set object, and a captured reference would
@@ -386,7 +393,7 @@ function buildChips(){
 const GROUPS={
   brands:{box:'opChips',all:()=>Object.keys(BRANDS)},
   sg:    {box:'sgChips',all:()=>SG_PORTS},
-  id:    {box:'idChips',all:()=>ID_PORTS},
+  id:    {box:'idChips',all:portsInGroup},
 };
 function toggleIn(key,value){
   const set=state[key];
@@ -405,7 +412,14 @@ Object.entries(GROUPS).forEach(([key,g])=>{
 $('allOps').addEventListener('click',()=>{selectAll('brands');buildChips();save();renderAll();});
 $('allSG').addEventListener('click',()=>{selectAll('sg');buildChips();save();renderAll();});
 $('allID').addEventListener('click',()=>{selectAll('id');buildChips();save();renderAll();});
+$('otherPorts').addEventListener('click',()=>{
+  state.portGroup=state.portGroup==='main'?'other':'main';
+  state.id=new Set(portsInGroup());
+  state.showPast=false;
+  buildChips(); save(); renderAll();
+});
 function resetFilters(){
+  state.portGroup='main';
   ['brands','sg','id'].forEach(selectAll);
   buildChips(); save(); renderAll();
 }
@@ -413,9 +427,11 @@ $('resetAll').addEventListener('click',resetFilters);
 $('fClear').addEventListener('click',resetFilters);
 
 function syncFilterBar(){
-  /* badge counts how many things are switched OFF — 0 means "showing everything" */
-  const off=(Object.keys(BRANDS).length-state.brands.size)
-          +(SG_PORTS.length-state.sg.size)+(ID_PORTS.length-state.id.size);
+  // Other ports are an explicit departure from the main-port default.
+  $('otherPorts').textContent=state.portGroup==='main'?'Browse other ports':'Back to main ports';
+  $('fLabel').textContent=state.portGroup==='main'?'Filters':'Filters · Other ports';
+  const off=(state.portGroup==='other'?1:0)+(Object.keys(BRANDS).length-state.brands.size)
+          +(SG_PORTS.length-state.sg.size)+(portsInGroup().length-state.id.size);
   $('fBadge').hidden=!off;
   $('fBadge').textContent=off;
   $('fBtn').classList.toggle('on',!!off);
