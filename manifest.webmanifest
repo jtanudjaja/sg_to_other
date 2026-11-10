@@ -1,0 +1,16 @@
+{
+  "name": "Singapore ⇄ Batam · Ferry Departures",
+  "short_name": "Ferry Departures",
+  "description": "Singapore–Batam ferry schedules, and check-in times, available offline.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF3F4",
+  "theme_color": "#0E343A",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

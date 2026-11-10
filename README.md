@@ -12,8 +12,12 @@ Opens straight onto results — no form to fill in. It guesses your direction fr
 | [styles.css](styles.css) | All styling, light + dark |
 | [data.js](data.js) | Schedules, operators, terminals, crossing durations |
 | [app.js](app.js) | State, filtering, rendering, sheets |
+| [manifest.webmanifest](manifest.webmanifest) | App identity, standalone launch and home-screen icons |
+| [pwa.js](pwa.js) / [sw.js](sw.js) | Install controls, offline notice and cached app releases |
+| [icons/](icons/) | Ferry icon source, install icons and Apple touch icon |
 
 **Bump the `?v=` on the `<link>`/`<script>` tags in `index.html` whenever you edit an asset** — otherwise browsers keep serving the cached copy and your change won't appear.
+Also bump `RELEASE` in `sw.js` whenever any cached file changes and update its `ASSETS` entries to match the queries in `index.html`.
 
 ## Behaviour notes
 
@@ -31,9 +35,22 @@ Everything is static. [.github/workflows/deploy.yml](.github/workflows/deploy.ym
 
 One-time setup: in the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
 
+## Install and offline use
+
+The HTTPS GitHub Pages site is installable as a standalone PWA. All manifest and service-worker paths are relative, so repository subpaths work too.
+
+- **Chrome / Edge:** expand **Install app** near the bottom of the board and use the install button when offered, or use the browser's install menu.
+- **iPhone / iPad:** open the site in Safari → Share → Add to Home Screen. Choose **Open as Web App** if shown.
+- Once the first online visit finishes caching, the board and filters work offline. An offline notice reminds you to confirm saved schedules with the operator.
+- Updates download as a complete release in the background. Close all tabs and installed windows for this app, then reopen it to activate a waiting update. Caches are isolated to this app's path so other GitHub Pages apps are unaffected.
+
 ## Local preview
 
 Open [index.html](index.html) directly in a browser — no server needed.
+
+To test installation and offline support, use `python3 -m http.server 8000` and visit `http://localhost:8000`. Service workers require HTTPS or localhost; they do not run from `file://`.
+
+Run the PWA checks with `node --test tests/pwa.test.cjs` (Node.js required, no dependencies).
 
 ## Data
 

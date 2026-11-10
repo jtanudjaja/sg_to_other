@@ -53,6 +53,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
+.offline-note{margin:var(--space-3) 0;padding:var(--space-3);border:1px solid var(--line);
+  border-radius:var(--r);background:var(--surface-2);color:var(--ink-2);font-size:13px}
+#installHelp[hidden]{display:none}
+#installStatus:empty{display:none}
+
 /* ============================ header ============================ */
 .top{background:var(--deep);color:var(--deep-ink);padding-top:env(safe-area-inset-top,0px)}
 .top .wrap{padding-top:var(--space-3);padding-bottom:var(--space-3)}

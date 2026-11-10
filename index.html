@@ -6,10 +6,16 @@
 <meta name="theme-color" content="#0E343A" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#07181B" media="(prefers-color-scheme: dark)">
 <meta name="description" content="Live ferry departure board for Singapore ⇄ Batam — Sindo, Batam Fast, Majestic and Horizon sailings by day, operator and terminal.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ferry Departures">
 <title>Singapore ⇄ Batam · Ferry Departures</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/ferry.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- bump ?v= on every asset when you change styles.css / data.js / app.js,
      otherwise browsers keep serving the cached copy -->
-<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
 
@@ -53,6 +59,7 @@
 </div>
 
 <main class="wrap">
+  <p class="offline-note" id="offlineNote" role="status" hidden>You're offline. Showing saved schedules. Confirm sailings with the operator before travelling.</p>
   <p class="cap" id="cap"></p>
   <ul class="board" id="board"></ul>
 
@@ -76,6 +83,15 @@
         <p><b>Check-in closes 35 minutes before departure</b> — that's the cutoff the board shows. Immigration queues at HarbourFront and Batam Centre can be long at weekends and holidays, so get there well before the cutoff.</p>
         <p><b>Location detection</b> uses your device position where the browser allows it and falls back to your timezone. If you're in neither place it defaults to Singapore. Flip the direction any time by tapping the route.</p>
         <p>Schedules change without notice — confirm with the operator for your travel date. Sources: Batam Fast (WEF 11 Apr 2026), Majestic (WEF 12 May 2026), Sindo and Horizon (current).</p>
+      </div>
+    </details>
+    <details id="installHelp">
+      <summary>Install app</summary>
+      <div class="dbody">
+        <p>Keep Ferry Departures on your home screen and browse schedules offline after your first visit.</p>
+        <button class="fbtn" id="installBtn" type="button" hidden>Install Ferry Departures</button>
+        <p id="installStatus" role="status"></p>
+        <p>On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen and choose Open as Web App if shown. On other devices, look for Install app or Add to Home Screen in your browser menu.</p>
       </div>
     </details>
     <p class="foot">Unofficial. Always confirm with the operator.</p>
@@ -131,5 +147,6 @@
 
 <script src="data.js?v=16"></script>
 <script src="app.js?v=19"></script>
+<script src="pwa.js?v=1"></script>
 </body>
 </html>
