@@ -258,7 +258,7 @@ function renderHero(rows){
     <div class="line">${e.from} <span style="color:var(--muted)">→</span> ${e.to}</div>
     <div class="sub">
       <span class="op" style="background:${b.color}"><i class="d"></i>${b.name}</span>
-      ${d?`<span>~${d} min · arrives ${hhmm(arr)} ${state.dir==='SG'?'WIB':'SGT'}</span>`:''}
+      ${d?`<span>~${d} min · arrives ~${hhmm(arr)} ${state.dir==='SG'?'WIB':'SGT'}</span>`:''}
     </div>
     ${checkin}`;
   return idx;
@@ -276,7 +276,7 @@ function rowHTML(e,i,past){
   return `<li><button class="row${past?' past':''}" type="button" data-i="${i}">
     <span class="tcol">
       <span class="dep num">${e.time}</span>
-      ${d?`<span class="arr num">arr ${hhmm(arr)}</span>`:''}
+      ${d?`<span class="arr num"><span class="arr-label">arr</span> <span>~${hhmm(arr)}</span></span>`:''}
     </span>
     <span class="rcol">
       <span class="r1">
@@ -493,7 +493,7 @@ function openDetail(e){
       <div><dt>Operator</dt><dd>${b.name}</dd></div>
       <div><dt>Check-in closes</dt><dd class="mono">${hhmm(close)} ${rel(close)}</dd></div>
       <div><dt>Departs</dt><dd class="mono">${e.from} ${e.time} ${rel(toMin(e.time))}</dd></div>
-      ${d?`<div><dt>Arrives (approx)</dt><dd class="mono">${e.to} ${hhmm(arr)} ${arrTz}</dd></div>
+      ${d?`<div><dt>Arrives (approx)</dt><dd class="mono">${e.to} ~${hhmm(arr)} ${arrTz}</dd></div>
           <div><dt>Crossing</dt><dd class="mono">~${d} min</dd></div>`
          :`<div><dt>Arrives</dt><dd>${e.to}</dd></div>`}
       <div><dt>Operates</dt><dd>${e.days.length===7?'Daily':e.days.map(x=>DAY_S[x]).join(', ')}</dd></div>
