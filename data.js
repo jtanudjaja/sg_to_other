@@ -17,9 +17,9 @@ const ID_PORTS=['Batam Centre','Harbour Bay','Sekupang','Gold Coast','Waterfront
 
 /* approximate crossing time in minutes, keyed `sgPort|idPort` */
 const DUR={
-  'HarbourFront|Batam Centre':60,'HarbourFront|Harbour Bay':45,'HarbourFront|Sekupang':45,
+  'HarbourFront|Batam Centre':90,'HarbourFront|Harbour Bay':60,'HarbourFront|Sekupang':45,
   'HarbourFront|Gold Coast':60,'HarbourFront|Waterfront':60,
-  'Tanah Merah|Batam Centre':90,'Tanah Merah|Nongsapura':45,
+  'Tanah Merah|Batam Centre':45,'Tanah Merah|Nongsapura':45,
 };
 
 function E(dir,brand,from,to,times,days,extra){
