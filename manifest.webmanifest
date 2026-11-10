@@ -1,7 +1,7 @@
 {
   "name": "Singapore ⇄ Batam · Ferry Departures",
   "short_name": "Ferry Departures",
-  "description": "Singapore–Batam ferry schedules, and check-in times, available offline.",
+  "description": "Singapore–Batam ferry schedules, check-in times and planned trips, available offline.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

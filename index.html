@@ -15,7 +15,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <!-- bump ?v= on every asset when you change styles.css / data.js / app.js,
      otherwise browsers keep serving the cached copy -->
-<link rel="stylesheet" href="styles.css?v=21">
+<link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
 
@@ -37,14 +37,7 @@
   </div>
 </header>
 
-<div class="wrap">
-  <section class="hero card" id="hero" aria-live="polite">
-    <div class="head"><span class="k" id="heroK">Next departure</span><span class="when" id="heroWhen"></span></div>
-    <div class="body" id="heroBody"></div>
-  </section>
-</div>
-
-<div class="sticky" id="sticky">
+<div class="sticky" id="sticky" role="region" aria-label="Choose date and filters">
   <div class="dates" id="dates" role="tablist" aria-label="Departure date"></div>
   <div class="wrap">
     <div class="fbar">
@@ -56,10 +49,24 @@
       <span class="count"><b class="num" id="sailCount">0</b> <span id="countWord">sailings</span></span>
     </div>
   </div>
+  <div class="sticky-plan" id="stickyPlan" hidden>
+    <button class="sticky-plan-button wrap" id="stickyPlanBtn" type="button" aria-haspopup="dialog" aria-controls="dsheet">
+      <span class="sticky-plan-time"><span><b class="num" id="stickyPlanTime"></b> <small id="stickyPlanZone"></small></span><span class="sticky-plan-countdown num" id="stickyPlanCountdown"></span></span>
+      <span class="sticky-plan-route"><span class="sticky-plan-label" id="stickyPlanLabel"></span><span id="stickyPlanRoute"></span></span>
+      <span class="sticky-plan-go" aria-hidden="true">›</span>
+    </button>
+  </div>
 </div>
 
-<main class="wrap">
+<main class="wrap" aria-labelledby="resultsDate">
   <p class="offline-note" id="offlineNote" role="status" hidden>You're offline. Showing saved schedules. Confirm sailings with the operator before travelling.</p>
+  <h1 class="sr" id="resultsDate">Today's sailings</h1>
+  <section id="dayPlans" class="day-plans" aria-label="Planned trips for the selected day" hidden></section>
+  <section class="hero card" id="hero" aria-live="polite">
+    <div class="head"><h2 class="k" id="heroK">Next available sailing</h2><span class="when" id="heroWhen"></span></div>
+    <div class="body" id="heroBody"></div>
+    <button class="hero-open" id="heroTrip" type="button" aria-haspopup="dialog" aria-controls="dsheet" hidden><span class="sr">View sailing details</span></button>
+  </section>
   <p class="cap" id="cap"></p>
   <ul class="board" id="board"></ul>
 
@@ -71,7 +78,8 @@
     <details>
       <summary>How to read this board</summary>
       <div class="dbody">
-        <p><b>All times are departure-port local time.</b> Singapore → Batam is shown in <b>SG time (UTC+8)</b>; Batam → Singapore in <b>WIB (UTC+7)</b>, exactly as the operators publish them. The clock and countdown follow the direction you picked, so a Batam countdown is never an hour off.</p>
+        <p><b>All times are departure-port local time.</b> Singapore → Batam is shown in <b>SG time (UTC+8)</b>; Batam → Singapore in <b>WIB (UTC+7)</b>, exactly as the operators publish them. The clock and countdown follow the direction you picked, so a Batam countdown is never an hour off. Batam is one hour behind Singapore, so a 60-minute crossing to Batam arrives at the same clock time.</p>
+        <p><b>Next available sailing</b> is the first departure with check-in still open. Today's count includes only sailings you can still check in for; expand the closed check-ins to browse the rest.</p>
         <p><b>Arrival times and durations are approximate</b> — typical crossing times, not published arrivals. Use them for planning, not for connections.</p>
         <p><b>⇄ shared</b> marks interlined trips: Sindo and Batam Fast sell the same physical sailing, so don't count it as two boats. Batam Fast's suspended Gold Coast trips are excluded.</p>
         <p><b>Weekend timings also apply on public holidays.</b> Sindo moves its HarbourFront services to the new terminal (70&nbsp;m away) from 15 Jul 2026; schedules unchanged.</p>
@@ -88,7 +96,7 @@
     <details id="installHelp">
       <summary>Install app</summary>
       <div class="dbody">
-        <p>Keep Ferry Departures on your home screen and browse schedules offline after your first visit.</p>
+        <p>Keep Ferry Departures on your home screen and browse schedules and planned trips offline after your first visit.</p>
         <button class="fbtn" id="installBtn" type="button" hidden>Install Ferry Departures</button>
         <p id="installStatus" role="status"></p>
         <p>On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen and choose Open as Web App if shown. On other devices, look for Install app or Add to Home Screen in your browser menu.</p>
@@ -135,18 +143,21 @@
 <div class="sheet dsheet" id="dsheet" role="dialog" aria-modal="true" aria-labelledby="dTitle" hidden>
   <div class="grab"></div>
   <div class="shead">
-    <h2 id="dTitle">Sailing</h2>
+    <h2 id="dTitle" class="trip-date"></h2>
     <button class="x" type="button" data-close aria-label="Close">×</button>
   </div>
   <div class="sbody" id="dBody"></div>
-  <div class="sfoot">
-    <button class="ghost" type="button" id="shareBtn">Share</button>
-    <button class="prim" type="button" id="icsBtn">Add to calendar</button>
+  <div class="sfoot trip-actions">
+    <button class="prim" type="button" id="planTripBtn">I’m taking this ferry</button>
+    <div class="trip-secondary">
+      <button class="ghost" type="button" id="shareBtn">Share</button>
+      <button class="ghost" type="button" id="icsBtn">Add to calendar</button>
+    </div>
   </div>
 </div>
 
 <script src="data.js?v=16"></script>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=36"></script>
 <script src="pwa.js?v=1"></script>
 </body>
 </html>

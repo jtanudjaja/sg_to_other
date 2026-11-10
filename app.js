@@ -35,13 +35,13 @@ function shiftYmd(ymd,n){
           dom:dt.getUTCDate(),mon:MON_S[dt.getUTCMonth()],y:dt.getUTCFullYear(),m:dt.getUTCMonth()+1};
 }
 function durOf(e){
-  const sgSide=state.dir==='SG'?e.from:e.to, idSide=state.dir==='SG'?e.to:e.from;
+  const sgSide=e.dir==='SG'?e.from:e.to, idSide=e.dir==='SG'?e.to:e.from;
   return DUR[sgSide+'|'+idSide]||null;
 }
 /* arrival, expressed in the ARRIVAL port's local time */
 function arrivalMin(e){
   const d=durOf(e); if(d===null) return null;
-  const shift=state.dir==='SG'?-60:60;          /* SG(UTC+8) → WIB(UTC+7) and back */
+  const shift=e.dir==='SG'?-60:60;              /* SG(UTC+8) → WIB(UTC+7) and back */
   return toMin(e.time)+d+shift;
 }
 
@@ -55,6 +55,7 @@ const portsInGroup=()=>state.portGroup==='other'
 const state={
   dir:'SG', pinned:false,
   date:null,                                     /* 'YYYY-MM-DD' in departure tz */
+  browseToday:false,                             /* explicit review of today's closed sailings */
   brands:new Set(Object.keys(BRANDS)),
   sg:new Set(SG_PORTS),
   portGroup:'main',
@@ -101,6 +102,8 @@ function sailings(dow){
   return D.filter(e=>matches(e,dow)).sort((a,b)=>
     toMin(a.time)-toMin(b.time) || a.from.localeCompare(b.from) || a.to.localeCompare(b.to));
 }
+/* At the cutoff itself check-in is already closed. */
+const firstOpenCheckin=(rows,n)=>rows.findIndex(e=>toMin(e.time)-LEAD>n.min);
 const activeFilterCount=()=>
   (state.brands.size<4?1:0)+(state.sg.size<SG_PORTS.length?1:0)+(state.id.size<portsInGroup().length?1:0);
 
@@ -119,6 +122,7 @@ function syncDirection(){
   const gSG=$('grpSG'), gID=$('grpID');
   gSG.parentNode.insertBefore(sg?gSG:gID, sg?gID:gSG);
   state.date=null;                                /* re-anchor to "today" in the new tz */
+  state.browseToday=false;
   buildDates(); renderAll();
 }
 $('route').addEventListener('click',()=>{
@@ -175,6 +179,7 @@ function buildDates(){
   const n=nowZ();
   if(!state.date) state.date=n.ymd;
   DATES=[]; for(let i=0;i<14;i++) DATES.push(shiftYmd(n.ymd,i));
+  if(state.date>DATES[13].ymd) DATES.push(shiftYmd(state.date,0));
   if(!DATES.some(d=>d.ymd===state.date)) state.date=n.ymd;
 
   const box=$('dates'); box.innerHTML='';
@@ -189,6 +194,7 @@ function buildDates(){
     b.setAttribute('aria-label',`${DAY_L[d.dow]} ${d.dom} ${d.mon}`);
     b.addEventListener('click',()=>{
       state.date=d.ymd; state.showPast=false;
+      state.browseToday=d.ymd===nowZ().ymd;
       [...box.children].forEach(c=>c.setAttribute('aria-selected','false'));
       b.setAttribute('aria-selected','true');
       b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
@@ -203,8 +209,12 @@ const isToday=()=>state.date===nowZ().ymd;
 /* ===================================================================
    RENDER · hero
    =================================================================== */
-function renderHero(rows){
-  const n=nowZ(), today=isToday(), sel=selected(), body=$('heroBody');
+let heroTrip=null;
+function renderHero(rows,idx,n,today){
+  const sel=selected(), body=$('heroBody');
+  heroTrip=null;
+  $('heroTrip').hidden=true;
+  $('hero').hidden=false;
   $('hero').classList.remove('none');
 
   if(!rows.length){
@@ -214,44 +224,39 @@ function renderHero(rows){
     body.innerHTML='Nothing matches your filters on this day.';
     return null;
   }
-  const idx = today ? rows.findIndex(e=>toMin(e.time)>=n.min) : 0;
   const tzTag = state.dir==='SG'?'SGT':'WIB';
 
   if(today && idx===-1){
-    $('heroK').textContent='Last boat has gone';
+    $('heroK').textContent='Check-in closed for today';
     $('heroWhen').textContent='Today';
     $('hero').classList.add('none');
     const first=sailings(shiftYmd(n.ymd,1).dow)[0];
     body.innerHTML = first
-      ? `First sailing tomorrow is <b>${first.time}</b> · ${BRANDS[first.brand].name} ${first.from} → ${first.to}.`
-      : 'No further sailings today.';
+      ? `First sailing tomorrow is <b>${first.time}</b> · ${BRANDS[first.brand].name} ${first.from} → ${first.to}. Check-in closes <b>${hhmm(toMin(first.time)-LEAD)}</b> ${tzTag}.`
+      : 'No sailings with check-in open today. Try another day.';
     return null;
   }
 
   const e=rows[idx], b=BRANDS[e.brand], dep=toMin(e.time), arr=arrivalMin(e), d=durOf(e);
-  $('heroK').textContent = today?'Next departure':'First departure';
+  $('hero').hidden=isPlanned({...e,date:sel.ymd});
+  heroTrip=e;
+  $('heroTrip').hidden=false;
+  $('heroTrip').setAttribute('aria-label',`View sailing details: ${b.name} ${e.time}, ${e.from} to ${e.to}`);
+  $('heroK').textContent = today?'Next available sailing':'First departure';
   $('heroWhen').textContent = today
     ? `Today · ${tzTag}`
     : `${DAY_L[sel.dow]} ${sel.dom} ${sel.mon} · ${tzTag}`;
 
+  const leave=dep-LEAD, closeIn=today?leave-n.min:null;
   let cd='';
   if(today){
     const m=dep-n.min;
-    const cls = m<=LEAD?'cd soon':'cd';
-    cd = `<span class="${cls} num">${m<1?'departing now':'in '+span(m)}</span>`;
+    const cls = closeIn<=10?'cd soon':'cd';
+    cd = `<span class="${cls} num">in ${span(m)}</span>`;
   }
-  const leave = today ? dep-LEAD : null;
-  const closeIn = today ? leave-n.min : null;
   let checkin='';
-  if(today && closeIn>0){
+  if(today){
     checkin=`<div class="leaveby">Check-in closes <b class="num">${hhmm(leave)}</b> — <b>in ${span(closeIn)}</b> from now (${LEAD} min before departure).</div>`;
-  }else if(today){
-    /* check-in already shut on this one — point at the first boat still catchable */
-    const catchable=rows.find(r=>toMin(r.time)-LEAD>n.min);
-    checkin=`<div class="leaveby shut">Check-in closed <b class="num">${hhmm(leave)}</b>, <b>${span(-closeIn)} ago</b>.`
-      +(catchable
-        ? ` Next one you can still make: <b class="num">${catchable.time}</b> (${BRANDS[catchable.brand].name}), check-in until <b class="num">${hhmm(toMin(catchable.time)-LEAD)}</b>.`
-        : ` No later sailing today still has check-in open.`)+`</div>`;
   }
   body.innerHTML=`
     <div class="big"><span class="dep num">${e.time}</span>${cd}</div>
@@ -259,10 +264,12 @@ function renderHero(rows){
     <div class="sub">
       <span class="op" style="background:${b.color}"><i class="d"></i>${b.name}</span>
       ${d?`<span>~${d} min · arrives ~${hhmm(arr)} ${state.dir==='SG'?'WIB':'SGT'}</span>`:''}
+      <span class="hero-cta" aria-hidden="true">View details ›</span>
     </div>
     ${checkin}`;
   return idx;
 }
+$('heroTrip').addEventListener('click',()=>openDetail(heroTrip));
 
 /* ===================================================================
    RENDER · board
@@ -271,8 +278,10 @@ let VIEW=[];
 /* Arrival is in the departure port's counterpart zone, so a 60-min crossing
    can print the same clock time as departure — the caption above the board
    spells the hour offset out. */
-function rowHTML(e,i,past){
+function rowHTML(e,i,closed,n){
   const b=BRANDS[e.brand], d=durOf(e), arr=arrivalMin(e);
+  const planned=isPlanned({...e,date:state.date});
+  const past=closed && toMin(e.time)<=n.min;
   return `<li><button class="row${past?' past':''}" type="button" data-i="${i}">
     <span class="tcol">
       <span class="dep num">${e.time}</span>
@@ -283,11 +292,12 @@ function rowHTML(e,i,past){
         <span class="op" style="background:${b.color}"><i class="d"></i>${b.name}</span>
         ${d?`<span class="dur">~${d}m</span>`:''}
         ${e.interline?'<span class="flag">⇄ shared</span>':''}
+        ${closed?`<span class="flag days">${past?'Departed':'Check-in closed'}</span>`:''}
         ${e.days.length<7?`<span class="flag days">${e.days.map(x=>DAY_S[x]).join('/')} only</span>`:''}
       </span>
       <span class="r2">${e.from}<i>→</i><b>${e.to}</b></span>
     </span>
-    <span class="go" aria-hidden="true">›</span>
+    <span class="go">${planned?'<span class="planned-marker" role="img" aria-label="Planned trip" title="Planned trip">✓</span>':'<span aria-hidden="true">›</span>'}</span>
   </button></li>`;
 }
 function emptyHTML(){
@@ -302,16 +312,15 @@ function emptyHTML(){
       : `Nothing runs on this route today. Try another day.`}
     ${off.length?'<br><button type="button" id="clearNow">Reset filters</button>':''}</div></li>`;
 }
-function renderBoard(rows,heroIdx){
-  const board=$('board'), n=nowZ(), today=isToday();
+function renderBoard(rows,heroIdx,firstOpen,n,today){
+  const board=$('board');
   VIEW=rows;
   if(!rows.length){
     board.innerHTML=emptyHTML();
     $('clearNow')?.addEventListener('click',resetFilters);
     return;
   }
-  const firstFuture = today ? rows.findIndex(e=>toMin(e.time)>=n.min) : 0;
-  const pastCount = today ? (firstFuture===-1?rows.length:firstFuture) : 0;
+  const pastCount = today ? (firstOpen===-1?rows.length:firstOpen) : 0;
   /* the hero already shows rows[heroIdx] — the board picks up after it */
   const start = heroIdx===null ? pastCount : heroIdx+1;
 
@@ -321,16 +330,17 @@ function renderBoard(rows,heroIdx){
   let html='';
   if(pastCount){
     html += state.showPast
-      ? sep('Earlier today') + rows.slice(0,pastCount).map((e,i)=>rowHTML(e,i,true)).join('')
-      : `<li><button class="earlier" type="button" id="showPast">↑ Show ${pastCount} earlier sailing${pastCount>1?'s':''}</button></li>`;
+      ? sep('Check-in closed') + rows.slice(0,pastCount).map((e,i)=>rowHTML(e,i,true,n)).join('')
+      : `<li><button class="earlier" type="button" id="showPast">↑ Show ${pastCount} sailing${pastCount>1?'s':''} with check-in closed</button></li>`;
+  }
+  if(pastCount && state.showPast){
+    html+=sep(`Now · ${hhmm(n.min)}`,'now','<button class="sephide" type="button" id="hidePast">Hide closed</button>');
   }
   if(start<rows.length){
     const shownPast = pastCount && state.showPast;
-    html += shownPast
-      ? sep(`Now · ${hhmm(n.min)}`,'now','<button class="sephide" type="button" id="hidePast">Hide earlier</button>')
-      : sep(today?'Later today':'Rest of the day');
-    for(let i=start;i<rows.length;i++) html+=rowHTML(rows[i],i,false);
-  }else if(heroIdx!==null){
+    if(!shownPast) html+=sep(today?'Later today':'Rest of the day');
+    for(let i=start;i<rows.length;i++) html+=rowHTML(rows[i],i,false,n);
+  }else if(heroIdx!==null && !$('hero').hidden){
     html+=`<li><div class="empty small">That's the last sailing of the day.</div></li>`;
   }
   board.innerHTML=html;
@@ -352,25 +362,39 @@ $('board').addEventListener('click',ev=>{
 });
 
 function renderAll(){
+  const n=nowZ();
+  /* Keep today's plans visible until departure, even outside board filters.
+     An explicit Today selection lets people review the closed schedule. */
+  if(state.date===n.ymd && !state.browseToday
+      && firstOpenCheckin(sailings(n.dow),n)===-1
+      && !plans.some(t=>t.date===n.ymd && depUTC(t).getTime()>Date.now())){
+    state.date=shiftYmd(n.ymd,1).ymd;
+    state.showPast=false;
+    buildDates();
+  }
   const sel=selected(); if(!sel) return;
   const rows=sailings(sel.dow);
-  const n=nowZ(), today=isToday();
+  const today=state.date===n.ymd;
+  const firstOpen=today?firstOpenCheckin(rows,n):0;
+  const dayLabel=today?'Today':state.date===DATES[1]?.ymd?'Tomorrow':DAY_L[sel.dow];
+  $('resultsDate').textContent=`${dayLabel} · ${sel.dom} ${sel.mon}`;
   const depTz=state.dir==='SG'?'SGT':'WIB';
   const arrTz=state.dir==='SG'?'WIB':'SGT';
-  $('cap').innerHTML=`Departures in <b>${depTz}</b>, arrivals in <b>${arrTz}</b>`
-    +` — the two ports are an hour apart, so a 60-min crossing lands on the same clock time.`;
+  $('cap').innerHTML=`Departures in <b>${depTz}</b> · arrivals in <b>${arrTz}</b>`;
 
   /* count what's actually on the board: while past sailings are collapsed,
      quoting the whole day's total contradicts the list underneath it */
-  const upcoming = today ? rows.filter(e=>toMin(e.time)>=n.min).length : rows.length;
+  const upcoming = today ? (firstOpen===-1?0:rows.length-firstOpen) : rows.length;
   const shown = (today && !state.showPast) ? upcoming : rows.length;
   $('sailCount').textContent=shown;
-  $('countWord').textContent = (today && !state.showPast) ? 'still to go' : 'sailings';
+  $('countWord').textContent = (today && !state.showPast) ? 'check-in open' : 'sailings';
   $('sheetCount').textContent=shown;
 
-  const heroIdx=renderHero(rows);
-  renderBoard(rows,heroIdx);
+  const heroIdx=renderHero(rows,firstOpen,n,today);
+  renderBoard(rows,heroIdx,firstOpen,n,today);
   syncFilterBar();
+  renderDayPlans();
+  if(openSheet===$('dsheet')) renderDetail();
 }
 
 /* ===================================================================
@@ -443,12 +467,17 @@ function syncFilterBar(){
 /* ===================================================================
    SHEET PLUMBING
    =================================================================== */
-let openSheet=null, lastFocus=null;
+let openSheet=null, lastFocus=null, closingSheet=null, hideTimer;
 function show(el,focusSel){
-  lastFocus=document.activeElement; openSheet=el;
+  clearTimeout(hideTimer);
+  if(closingSheet){closingSheet.hidden=true;closingSheet=null;}
+  if(openSheet && openSheet!==el){openSheet.hidden=true;openSheet.classList.remove('show');}
+  if(!openSheet) lastFocus=document.activeElement;
+  openSheet=el;
   $('scrim').hidden=false; el.hidden=false;
-  requestAnimationFrame(()=>{$('scrim').classList.add('show');el.classList.add('show');});
+  requestAnimationFrame(()=>{if(openSheet===el){$('scrim').classList.add('show');el.classList.add('show');}});
   document.body.style.overflow='hidden';
+  document.querySelectorAll('.top,.sticky,main,.fab').forEach(node=>node.inert=true);
   (el.querySelector(focusSel)||el.querySelector('[data-close]'))?.focus({preventScroll:true});
 }
 function hide(){
@@ -456,82 +485,211 @@ function hide(){
   const el=openSheet; openSheet=null;
   el.classList.remove('show'); $('scrim').classList.remove('show');
   document.body.style.overflow='';
-  setTimeout(()=>{el.hidden=true;$('scrim').hidden=true;},240);
-  lastFocus?.focus({preventScroll:true});
+  document.querySelectorAll('.top,.sticky,main,.fab').forEach(node=>node.inert=false);
+  closingSheet=el;
+  hideTimer=setTimeout(()=>{el.hidden=true;closingSheet=null;if(!openSheet)$('scrim').hidden=true;},240);
+  const fallback=$('heroTrip').hidden?$('route'):$('heroTrip');
+  const canRestore=lastFocus?.isConnected && !(lastFocus===$('stickyPlanBtn') && $('stickyPlan').hidden);
+  (canRestore?lastFocus:fallback).focus({preventScroll:true});
 }
 $('scrim').addEventListener('click',hide);
 document.addEventListener('click',ev=>{ if(ev.target.closest('[data-close]')) hide(); });
-document.addEventListener('keydown',ev=>{ if(ev.key==='Escape'&&openSheet) hide(); });
+document.addEventListener('keydown',ev=>{
+  if(!openSheet)return;
+  if(ev.key==='Escape'){hide();return;}
+  if(ev.key!=='Tab')return;
+  const buttons=[...openSheet.querySelectorAll('button:not([disabled]),a[href],summary,input,select,textarea')]
+    .filter(node=>!node.closest('[hidden]'));
+  const first=buttons[0], last=buttons[buttons.length-1];
+  if(ev.shiftKey && document.activeElement===first){ev.preventDefault();last?.focus();}
+  else if(!ev.shiftKey && document.activeElement===last){ev.preventDefault();first?.focus();}
+});
 $('fBtn').addEventListener('click',()=>{
   $('sheetBody').scrollTop=0;
   show($('sheet'),'#opChips .chip');
 });
 
 /* ===================================================================
-   SAILING DETAIL · share + calendar
+   PLANNED TRIPS · dated independently of board filters
    =================================================================== */
+const PLANS_KEY='sgbatam.plans.v1';
+let plans=[];
 let current=null;
-function openDetail(e){
-  if(!e) return;
-  current=e;
-  const b=BRANDS[e.brand], sel=selected(), d=durOf(e), arr=arrivalMin(e);
-  const depTz=state.dir==='SG'?'SGT (UTC+8)':'WIB (UTC+7)';
-  const arrTz=state.dir==='SG'?'WIB (UTC+7)':'SGT (UTC+8)';
-  /* relative times only make sense on today's board */
-  const n=nowZ(), live=isToday(), close=toMin(e.time)-LEAD;
-  const rel=(m)=>{
-    if(!live) return '';
-    const diff=m-n.min;
-    return `<span class="rel${diff<=0?' shut':''}">${diff>0?`in ${span(diff)}`:`${span(-diff)} ago`}</span>`;
-  };
-  $('dTitle').textContent=`${b.name} · ${e.time}`;
-  $('dBody').innerHTML=`
-    <div class="big num">${e.time}</div>
-    <div style="margin-top:4px;font-size:14px;color:var(--muted)">
-      ${DAY_L[sel.dow]} ${sel.dom} ${sel.mon} · ${depTz}</div>
-    <dl class="dl">
-      <div><dt>Operator</dt><dd>${b.name}</dd></div>
-      <div><dt>Check-in closes</dt><dd class="mono">${hhmm(close)} ${rel(close)}</dd></div>
-      <div><dt>Departs</dt><dd class="mono">${e.from} ${e.time} ${rel(toMin(e.time))}</dd></div>
-      ${d?`<div><dt>Arrives (approx)</dt><dd class="mono">${e.to} ~${hhmm(arr)} ${arrTz}</dd></div>
-          <div><dt>Crossing</dt><dd class="mono">~${d} min</dd></div>`
-         :`<div><dt>Arrives</dt><dd>${e.to}</dd></div>`}
-      <div><dt>Operates</dt><dd>${e.days.length===7?'Daily':e.days.map(x=>DAY_S[x]).join(', ')}</dd></div>
-      ${e.interline?'<div><dt>Note</dt><dd>Interlined — Sindo and Batam Fast sell this same sailing</dd></div>':''}
-    </dl>`;
-  show($('dsheet'),'#icsBtn');
-}
+const tripKey=t=>[t.date,t.dir,t.brand,t.from,t.to,t.time].join('|');
+const planSlot=t=>[t.date,t.dir].join('|');
+const dateLabel=date=>{
+  const d=shiftYmd(date,0);
+  return `${DAY_L[d.dow]}, ${d.dom} ${d.mon} ${d.y}`;
+};
 function depUTC(e){
-  const sel=selected(), [hh,mm]=e.time.split(':').map(Number);
-  return new Date(Date.UTC(sel.y,sel.m-1,sel.dom,hh-OFFSET[state.dir],mm));
+  const [y,m,d]=(e.date||state.date).split('-').map(Number), [hh,mm]=e.time.split(':').map(Number);
+  return new Date(Date.UTC(y,m-1,d,hh-OFFSET[e.dir],mm));
 }
+function validPlan(t){
+  if(!t || !/^\d{4}-\d{2}-\d{2}$/.test(t.date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(t.time))return false;
+  if(!['SG','ID'].includes(t.dir) || !Object.hasOwn(BRANDS,t.brand))return false;
+  if(!(t.dir==='SG'?SG_PORTS:ID_PORTS).includes(t.from) || !(t.dir==='SG'?ID_PORTS:SG_PORTS).includes(t.to))return false;
+  try{return shiftYmd(t.date,0).ymd===t.date;}catch(err){return false;}
+}
+function loadPlans(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(PLANS_KEY)||'[]');
+    if(!Array.isArray(saved))return;
+    // Older saves could contain multiple choices: keep the last choice per day/direction.
+    const slots=new Map();
+    saved.filter(validPlan).forEach(t=>slots.set(planSlot(t),{date:t.date,dir:t.dir,brand:t.brand,from:t.from,to:t.to,time:t.time}));
+    plans=[...slots.values()];
+    if(plans.length!==saved.length)savePlans();
+  }catch(err){plans=[];}
+}
+function savePlans(){
+  try{localStorage.setItem(PLANS_KEY,JSON.stringify(plans));return true;}catch(err){return false;}
+}
+const isPlanned=t=>plans.some(p=>tripKey(p)===tripKey(t));
+function addPlan(t){
+  if(!t || isPlanned(t))return;
+  const replacing=plans.some(p=>planSlot(p)===planSlot(t));
+  plans=plans.filter(p=>planSlot(p)!==planSlot(t));
+  plans.push({date:t.date,dir:t.dir,brand:t.brand,from:t.from,to:t.to,time:t.time});
+  const saved=savePlans();
+  renderAll();
+  toast(saved?(replacing?'Your planned trip has been changed':'Trip added to your plans'):'Added for this visit; browser storage is unavailable');
+}
+function removePlan(t){
+  plans=plans.filter(p=>tripKey(p)!==tripKey(t));
+  const saved=savePlans();
+  renderAll();
+  toast(saved?'Trip removed from your plans':'Removed for this visit; browser storage is unavailable');
+}
+const ferryIcon='<svg class="trip-ship" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17 2 10l10-3 10 3-2 7M5 9V4h14v5M9 4V2h6v2M12 7v10M2 21c2 0 3-2 5-2s3 2 5 2 3-2 5-2 3 2 5 2"/></svg>';
+function tripRouteHTML(t){
+  const arr=arrivalMin(t), duration=durOf(t);
+  const terminal=name=>name.replace('HarbourFront','Harbour<wbr>Front');
+  const dayOffset=arr===null?0:Math.floor(arr/1440);
+  return `<div class="trip-route">
+    <div class="trip-end"><div class="trip-caption">Departure</div><div class="trip-time num">${t.time}</div>
+      <div class="trip-terminal">${terminal(t.from)}</div><div class="trip-zone">${t.dir==='SG'?'SGT':'WIB'}</div></div>
+    <div class="trip-crossing"><div class="trip-track">${ferryIcon}</div><div class="trip-duration">${duration?`~${duration} min`:'Duration unavailable'}</div></div>
+    <div class="trip-end"><div class="trip-caption">Arrival</div><div class="trip-time num">${arr===null?'—':'~'+hhmm(arr)}${dayOffset?`<span class="trip-day">+${dayOffset}d</span>`:''}</div>
+      <div class="trip-terminal">${terminal(t.to)}</div><div class="trip-zone">${t.dir==='SG'?'WIB':'SGT'}</div></div>
+  </div>`;
+}
+function checkinHTML(t){
+  const sameDay=t.date===zoned(TZ[t.dir]).ymd;
+  const cutoff=depUTC(t).getTime()-LEAD*60000, diff=cutoff-Date.now();
+  const closed=sameDay && diff<=0;
+  const relative=!sameDay?'':diff>0?`${span(Math.ceil(diff/60000))} left`
+    :diff>-60000?'just closed':`${span(Math.floor(-diff/60000))} ago`;
+  return `<span>${closed?'Check-in closed':'Check-in closes'}</span><span class="trip-checkin-value"><strong class="num">${hhmm(toMin(t.time)-LEAD)} ${t.dir==='SG'?'SGT':'WIB'}</strong>${relative?`<span class="trip-remaining">· ${relative}</span>`:''}</span>`;
+}
+function tripFooterHTML(t){
+  const brand=BRANDS[t.brand];
+  return `<div class="trip-meta"><span class="op" style="background:${brand.color}"><i class="d"></i>${brand.name}</span><div class="trip-checkin">${checkinHTML(t)}</div></div>`;
+}
+let stickyPlanTrip=null;
+function renderStickyPlan(day){
+  const now=Date.now();
+  stickyPlanTrip=day.find(t=>depUTC(t).getTime()>now)||day.at(-1)||null;
+  if(stickyPlanTrip){
+    const t=stickyPlanTrip, departure=depUTC(t).getTime();
+    const zone=t.dir==='SG'?'SGT':'WIB';
+    const departed=departure<=now, closed=!departed && departure-LEAD*60000<=now;
+    const localToday=zoned(TZ[t.dir]).ymd;
+    const when=departed?'Departed':t.date===localToday?`in ${span(Math.ceil((departure-now)/60000))}`
+      :t.date===shiftYmd(localToday,1).ymd?'Tomorrow':`${shiftYmd(t.date,0).dom} ${shiftYmd(t.date,0).mon}`;
+    $('stickyPlanTime').textContent=t.time;
+    $('stickyPlanZone').textContent=zone;
+    $('stickyPlanCountdown').textContent=when;
+    $('stickyPlanCountdown').classList.toggle('departed',departed);
+    $('stickyPlanLabel').textContent=closed?'Planned · Check-in closed':`Planned · ${BRANDS[t.brand].name}`;
+    $('stickyPlanLabel').classList.toggle('closed',closed);
+    $('stickyPlanRoute').textContent=`${t.from} → ${t.to}`;
+    $('stickyPlanBtn').setAttribute('aria-label',`View planned trip: ${BRANDS[t.brand].name}, ${t.time} ${zone}, ${t.from} to ${t.to}, ${when}${closed?', check-in closed':''}`);
+  }
+  syncStickyPlanVisibility();
+}
+function syncStickyPlanVisibility(){
+  const bounds=sticky.getBoundingClientRect();
+  const stuck=bounds.top<=0;
+  sticky.classList.toggle('stuck',stuck);
+  // Use the controls' bottom, excluding the overlay, so scrolling back has
+  // the same threshold and even a partly visible planned card hides the bar.
+  $('stickyPlan').hidden=!stickyPlanTrip || !stuck || $('dayPlans').hidden
+    || $('dayPlans').getBoundingClientRect().bottom>bounds.bottom;
+}
+$('stickyPlanBtn').addEventListener('click',()=>{if(stickyPlanTrip)openDetail(stickyPlanTrip);});
+function renderDayPlans(){
+  const day=plans.filter(t=>t.date===state.date).sort((a,b)=>depUTC(a)-depUTC(b)||tripKey(a).localeCompare(tripKey(b)));
+  $('dayPlans').hidden=!day.length;
+  $('dayPlans').innerHTML=day.map(t=>{
+    const departed=depUTC(t).getTime()<=Date.now();
+    return `<article class="day-plan-card"><div class="day-plan-head"><h2>Planned trip${departed?' · Departed':''}</h2><span aria-hidden="true">View details ›</span></div>
+      ${tripRouteHTML(t)}${tripFooterHTML(t)}
+      <button class="hero-open" type="button" data-day-plan="${encodeURIComponent(tripKey(t))}" aria-haspopup="dialog" aria-controls="dsheet" aria-label="View planned trip: ${BRANDS[t.brand].name} ${t.time} ${t.dir==='SG'?'SGT':'WIB'}, ${t.from} to ${t.to}"></button></article>`;
+  }).join('');
+  renderStickyPlan(day);
+}
+$('dayPlans').addEventListener('click',ev=>{
+  const button=ev.target.closest('[data-day-plan]');if(!button)return;
+  const trip=plans.find(t=>encodeURIComponent(tripKey(t))===button.dataset.dayPlan);
+  if(trip)openDetail(trip);
+});
+function renderDetail(){
+  if(!current)return;
+  const e=current, saved=isPlanned(e);
+  $('dTitle').textContent=dateLabel(e.date);
+  const schedule=D.find(row=>row.dir===e.dir&&row.brand===e.brand&&row.from===e.from&&row.to===e.to&&row.time===e.time);
+  const notes=[];
+  if(schedule?.days.length<7)notes.push(`Operates ${schedule.days.map(d=>DAY_S[d]).join(', ')}.`);
+  if(schedule?.interline)notes.push('Shared sailing — Sindo and Batam Fast sell the same boat.');
+  $('dBody').innerHTML=tripRouteHTML(e)+tripFooterHTML(e)+(notes.length?`<p class="trip-note">${notes.join(' ')}</p>`:'');
+  $('planTripBtn').textContent=saved?'Remove from my plans':'I’m taking this ferry';
+  $('planTripBtn').classList.toggle('is-planned',saved);
+  $('planTripBtn').setAttribute('aria-pressed',String(saved));
+}
+function openDetail(e,date=e?.date||state.date){
+  if(!e) return;
+  current={...e,date};
+  renderDetail();
+  $('dBody').scrollTop=0;
+  show($('dsheet'),'#planTripBtn');
+}
+$('planTripBtn').addEventListener('click',()=>{if(current){isPlanned(current)?removePlan(current):addPlan(current);}});
+
+/* Share and calendar use the dated sailing, even when the board changes. */
 const icsStamp=dt=>dt.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
-$('icsBtn').addEventListener('click',()=>{
-  const e=current; if(!e) return;
+function calendarText(e){
   const b=BRANDS[e.brand], start=depUTC(e), end=new Date(start.getTime()+(durOf(e)||60)*60000);
-  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//sg-batam-ferry//EN','BEGIN:VEVENT',
-    `UID:${start.getTime()}-${e.brand}-${e.from.replace(/\s/g,'')}@sg-batam`,
+  const zone=e.dir==='SG'?'SGT':'WIB';
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//sg-batam-ferry//EN','BEGIN:VEVENT',
+    `UID:${start.getTime()}-${e.brand}-${e.from.replace(/\s/g,'')}-${e.to.replace(/\s/g,'')}@sg-batam`,
     `DTSTAMP:${icsStamp(new Date())}`,`DTSTART:${icsStamp(start)}`,`DTEND:${icsStamp(end)}`,
     `SUMMARY:Ferry ${e.from} → ${e.to} (${b.name})`,
     `LOCATION:${e.from} Ferry Terminal`,
-    `DESCRIPTION:${b.name} ferry departing ${e.time}. Check-in closes ${hhmm(toMin(e.time)-LEAD)} (${LEAD} min before). Arrival time approximate.`,
+    `DESCRIPTION:${b.name} ferry departing ${e.time} ${zone}. Check-in closes ${hhmm(toMin(e.time)-LEAD)} ${zone} (${LEAD} min before). Arrival time approximate.`,
     'BEGIN:VALARM',`TRIGGER:-PT${LEAD}M`,'ACTION:DISPLAY','DESCRIPTION:Ferry check-in closing','END:VALARM',
     'END:VEVENT','END:VCALENDAR'].join('\r\n');
-  const url=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'}));
+}
+$('icsBtn').addEventListener('click',()=>{
+  const e=current;if(!e)return;
+  const url=URL.createObjectURL(new Blob([calendarText(e)],{type:'text/calendar;charset=utf-8'}));
   const a=document.createElement('a');
-  a.href=url; a.download=`ferry-${e.time.replace(':','')}-${e.brand}.ics`;
+  a.href=url; a.download=`ferry-${e.date}-${e.time.replace(':','')}-${e.brand}.ics`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),2000);
   toast('Calendar file downloaded');
 });
+function shareText(e){
+  const zone=e.dir==='SG'?'SGT':'WIB';
+  return `${BRANDS[e.brand].name} ferry ${e.time} ${zone} — ${e.from} → ${e.to}, ${dateLabel(e.date)}. Check-in closes ${hhmm(toMin(e.time)-LEAD)} ${zone}.`;
+}
 $('shareBtn').addEventListener('click',async()=>{
   const e=current; if(!e) return;
-  const sel=selected();
-  const text=`${BRANDS[e.brand].name} ferry ${e.time} — ${e.from} → ${e.to}, ${DAY_L[sel.dow]} ${sel.dom} ${sel.mon}`;
+  const text=shareText(e);
   try{
     if(navigator.share){ await navigator.share({title:'Ferry sailing',text}); return; }
     await navigator.clipboard.writeText(text); toast('Copied to clipboard');
-  }catch(err){ /* user cancelled */ }
+  }catch(err){if(err.name!=='AbortError')toast('Could not share. Try adding it to your calendar.');}
 });
 
 let toastT;
@@ -543,32 +701,35 @@ function toast(msg){
 /* ===================================================================
    CLOCK · sticky shadow · jump-to-now
    =================================================================== */
+let lastBoardMinute=null, lastBoardDate=null, lastBoardDirection=null;
 function tick(){
   const n=nowZ();
   $('clock').textContent=`${String(n.hh).padStart(2,'0')}:${String(n.mm).padStart(2,'0')}:${String(n.ss).padStart(2,'0')} ${state.dir==='SG'?'SGT':'WIB'}`;
+  if(lastBoardDirection===state.dir && lastBoardDate && n.ymd!==lastBoardDate){
+    state.date=null; state.showPast=false; state.browseToday=false; buildDates();
+  }
+  const minute=`${state.dir}:${n.ymd}:${n.min}`;
+  if(minute!==lastBoardMinute){ lastBoardMinute=minute; renderAll(); }
+  lastBoardDate=n.ymd;
+  lastBoardDirection=state.dir;
 }
 const sticky=$('sticky'), fab=$('fab');
 addEventListener('scroll',()=>{
-  sticky.classList.toggle('stuck',sticky.getBoundingClientRect().top<=0);
+  syncStickyPlanVisibility();
   const hero=$('hero').getBoundingClientRect();
   fab.classList.toggle('show',isToday()&&hero.bottom<-40);
 },{passive:true});
+addEventListener('resize',syncStickyPlanVisibility);
 fab.addEventListener('click',()=>scrollTo({top:0,behavior:'smooth'}));
 
 /* ===================================================================
    INIT
    =================================================================== */
-load();
+load();loadPlans();
 buildChips();
 syncDirection();                 /* builds dates + first render */
 tick();
 if(!state.pinned) detectByGeo(); else $('detect').textContent='Set manually';
 
 setInterval(tick,1000);
-setInterval(renderAll,30000);
-let lastYmd=nowZ().ymd;
-setInterval(()=>{
-  const y=nowZ().ymd;
-  if(y!==lastYmd){ lastYmd=y; state.date=null; state.showPast=false; buildDates(); renderAll(); }
-},60000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){tick();renderAll();} });

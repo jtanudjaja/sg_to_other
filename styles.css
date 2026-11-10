@@ -52,7 +52,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .wrap{max-width:var(--content-width);margin:0 auto;padding:0 var(--gutter)}
 .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-
 .offline-note{margin:var(--space-3) 0;padding:var(--space-3);border:1px solid var(--line);
   border-radius:var(--r);background:var(--surface-2);color:var(--ink-2);font-size:13px}
 #installHelp[hidden]{display:none}
@@ -88,7 +87,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
   padding:4px 2px;min-height:auto}
 
 /* ============================ next-up hero ============================ */
-.hero{margin:var(--space-3) 0 var(--space-1)}
+.hero{position:relative;margin:0 0 var(--space-3)}
+.hero-open{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit}
+.hero-open:hover{box-shadow:inset 0 0 0 1px var(--sea)}
+.hero-open:focus-visible{outline-offset:-3px;border-radius:inherit}
+.hero-cta{margin-left:auto;color:var(--sea-ink);font-weight:600;white-space:nowrap}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;
   box-shadow:var(--shadow);overflow:hidden}
 .hero .head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);flex-wrap:wrap;
@@ -141,7 +144,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .dchip .mo{font-size:9px;opacity:.75;margin-left:2px}
 
 .fbar{display:flex;align-items:center;gap:var(--space-2);padding-bottom:var(--space-2);flex-wrap:wrap}
-.fbtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:var(--space-2);min-height:36px;
+.fbtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:var(--space-2);min-height:var(--tap);
   padding:0 var(--space-3);border-radius:20px;border:1px solid var(--line);background:var(--surface);
   font-size:13px;font-weight:550;color:var(--ink-2)}
 .fbtn.on{background:var(--sea-tint);border-color:var(--sea);color:var(--sea-ink)}
@@ -158,7 +161,32 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
   padding-left:4px}
 .count b{color:var(--ink);font-family:var(--mono)}
 
+/* Overlay below the controls: revealing it must not move the full planned
+   cards and cause the visibility threshold to oscillate. */
+.sticky-plan{position:absolute;top:100%;left:0;right:0;background:var(--sea-tint);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+.sticky-plan[hidden]{display:none}
+.sticky-plan-button{display:grid;grid-template-columns:90px minmax(0,1fr) 14px;
+  align-items:center;gap:var(--space-3);width:100%;padding-top:var(--space-3);padding-bottom:var(--space-3);
+  min-height:var(--tap);text-align:left}
+.sticky-plan-button:focus-visible{outline-offset:-3px}
+.sticky-plan-time{display:grid;gap:2px}
+.sticky-plan-time>span:first-child{white-space:nowrap}
+.sticky-plan-time b{font-family:var(--mono);font-size:21px;font-weight:650;line-height:1.15;letter-spacing:-.04em}
+.sticky-plan-time small{font-size:10px;color:var(--ink-2)}
+.sticky-plan-countdown{font-size:11px;color:var(--sea-ink)}
+.sticky-plan-countdown.departed{color:var(--ink-2)}
+.sticky-plan-route{display:grid;gap:var(--space-1);min-width:0}
+.sticky-plan-label{font-size:11px;font-weight:600;color:var(--sea-ink)}
+.sticky-plan-label.closed{color:var(--warn)}
+.sticky-plan-route>span:last-child{font-size:12px;font-weight:550;overflow-wrap:anywhere}
+.sticky-plan-go{font-size:22px;color:var(--sea-ink);line-height:1}
+@media(max-width:360px){
+  .sticky-plan-button{grid-template-columns:90px minmax(0,1fr) 12px;gap:var(--space-2)}
+}
+
 /* ============================ board ============================ */
+main.wrap{padding-top:var(--space-4)}
 .cap{font-size:11.5px;color:var(--muted);margin:var(--space-3) 0 0;line-height:1.4}
 .cap b{color:var(--ink-2);font-weight:650}
 .board{list-style:none;margin:var(--space-1) 0 0}
@@ -212,6 +240,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .row .r2 b{font-weight:650;color:var(--ink)}
 .row .r2 i{font-style:normal;color:var(--muted)}
 .row .go{grid-column:3;grid-row:1 / span 2;align-self:center;color:var(--muted);font-size:15px}
+.planned-marker{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;
+  background:var(--sea-tint);color:var(--sea-ink);font-size:12px;font-weight:700}
 
 .row.past{opacity:.45}
 .row.past .dep{text-decoration:line-through;text-decoration-thickness:1.5px}
@@ -283,17 +313,47 @@ details[open] summary::after{transform:rotate(180deg)}
 .chip[aria-pressed="true"] .tick{opacity:1}
 .chip[aria-pressed="false"] .d{filter:grayscale(1);opacity:.45}
 
-/* detail sheet */
-.dsheet .big{font-family:var(--mono);font-size:32px;font-weight:700;letter-spacing:-.02em}
-.dl{margin-top:var(--space-3);border-top:1px solid var(--line-soft)}
-.dl div{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-3) 0;
-  border-bottom:1px solid var(--line-soft);font-size:14px}
-.dl dt{color:var(--muted);flex:0 0 auto}
-.dl dd{text-align:right;font-weight:600;min-width:0}
-.dl dd.mono{font-family:var(--mono)}
-.dl .rel{display:inline-block;margin-left:var(--space-1);font-family:var(--sans);font-size:12px;
-  font-weight:600;color:var(--sea);background:var(--sea-tint);border-radius:6px;padding:2px var(--space-2)}
-.dl .rel.shut{color:var(--warn);background:transparent;padding-left:0}
+/* Dated sailing tickets: departure → crossing → arrival. */
+.dsheet .shead{border-bottom:0}
+.dsheet .shead .trip-date{font-size:14px;font-weight:550;letter-spacing:0}
+.dsheet .sbody{padding-top:var(--space-3);padding-bottom:var(--space-3)}
+.trip-route{display:grid;grid-template-columns:minmax(0,1fr) 72px minmax(0,1fr);gap:var(--space-2);align-items:start}
+.trip-end{min-width:0}
+.trip-end:last-child{text-align:right}
+.trip-caption{font-size:11px;color:var(--ink-2);margin-bottom:var(--space-1)}
+.trip-time{font-family:var(--mono);font-size:28px;font-weight:650;letter-spacing:-.05em;line-height:1.2;white-space:nowrap}
+.trip-terminal{font-size:14px;font-weight:550;line-height:1.3;margin-top:var(--space-2);overflow-wrap:break-word}
+.trip-zone{font-size:11px;color:var(--ink-2);margin-top:var(--space-1)}
+.trip-day{font-family:var(--sans);font-size:10px;letter-spacing:0;vertical-align:super}
+.trip-crossing{text-align:center;padding-top:var(--space-5)}
+.trip-track{display:flex;align-items:center;gap:var(--space-1);color:var(--sea)}
+.trip-track::before,.trip-track::after{content:'';flex:1;height:1px;background:var(--line)}
+.trip-ship{width:24px;height:24px;flex:none}
+.trip-duration{font-size:12px;color:var(--ink-2);margin-top:var(--space-2)}
+.trip-meta{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);
+  border-top:1px solid var(--line-soft);margin-top:var(--space-4);padding-top:var(--space-3)}
+.trip-checkin{display:flex;flex:1;min-width:0;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;
+  gap:var(--space-1) var(--space-2);font-size:11px;color:var(--ink-2)}
+.trip-checkin-value{display:inline-flex;flex-wrap:wrap;justify-content:flex-end;align-items:baseline;gap:var(--space-1) var(--space-2)}
+.trip-checkin strong{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--warn);white-space:nowrap}
+.trip-remaining{color:var(--warn);white-space:nowrap;font-variant-numeric:tabular-nums}
+.trip-note{font-size:12px;color:var(--ink-2);line-height:1.5;margin-top:var(--space-3)}
+.trip-actions.sfoot{display:flex;flex-direction:column;border-top:0;padding-top:var(--space-2)}
+.trip-actions .prim.is-planned{background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);font-weight:550}
+.trip-secondary{display:flex;gap:var(--space-2)}
+.trip-secondary .ghost{flex:1;min-width:0;font-size:12px;font-weight:550;border:0;background:var(--surface-2);color:var(--ink-2)}
+.day-plans[hidden]{display:none}
+.day-plans{display:grid;gap:var(--space-3);margin-bottom:var(--space-3)}
+.day-plan-card{position:relative;background:var(--surface);border:1px solid var(--sea);border-radius:18px;
+  padding:var(--space-3);box-shadow:var(--shadow)}
+.day-plan-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);margin-bottom:var(--space-4)}
+.day-plan-head h2{font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.08em;color:var(--sea)}
+.day-plan-head>span{font-size:11px;color:var(--ink-2);white-space:nowrap}
+.day-plan-card .hero-open:focus-visible{outline-offset:3px}
+@media(max-width:360px){
+  .trip-route{grid-template-columns:minmax(0,1fr) 60px minmax(0,1fr)}
+  .trip-time{font-size:25px}
+}
 
 /* jump-to-now fab — right-aligned so it covers the chevron gutter, not the times */
 .fab{position:fixed;right:max(var(--gutter),calc((100% - var(--content-width)) / 2 + var(--gutter)));transform:translateY(80px);
@@ -303,8 +363,9 @@ details[open] summary::after{transform:rotate(180deg)}
   transition:transform .22s cubic-bezier(.32,.72,0,1);display:inline-flex;align-items:center}
 .fab.show{transform:translateY(0)}
 
-.toast{position:fixed;left:50%;bottom:calc(70px + var(--safe-b));transform:translateX(-50%);
+.toast{position:fixed;left:50%;top:calc(var(--space-4) + env(safe-area-inset-top,0px));transform:translateX(-50%);
   z-index:90;background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;
+  width:max-content;max-width:calc(100% - var(--space-6));text-align:center;
   padding:var(--space-3) var(--space-4);border-radius:20px;box-shadow:var(--shadow);opacity:0;
   transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}

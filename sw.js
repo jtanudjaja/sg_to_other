@@ -1,14 +1,14 @@
 /* Bump RELEASE whenever any cached file changes, and keep asset queries in
    sync with index.html. Installation is atomic: failed downloads keep the old app. */
-const RELEASE = 'v1';
+const RELEASE = 'v11';
 const CACHE_PREFIX = `ferry-departures:${self.registration.scope}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${RELEASE}`;
 const SHELL = new URL('index.html', self.registration.scope).href;
 const ASSETS = [
   'index.html',
-  'styles.css?v=21',
+  'styles.css?v=37',
   'data.js?v=16',
-  'app.js?v=19',
+  'app.js?v=36',
   'pwa.js?v=1',
   'manifest.webmanifest',
   'icons/ferry.svg',
